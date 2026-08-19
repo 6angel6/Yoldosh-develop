@@ -1,0 +1,103 @@
+groups:
+  - name: business_alerts
+    interval: 30s
+    rules:
+      # Low Trip Creation Rate
+      - alert: LowTripCreationRate
+        expr: |
+          rate(trip_created_total[10m]) < 0.01
+        for: 15m
+        labels:
+          severity: warning
+          component: business
+        annotations:
+          summary: "Low trip creation rate"
+          description: "Trip creation rate is {{ $value }} trips/s (expected: >0.01)"
+
+      # Low Booking Rate
+      - alert: LowBookingRate
+        expr: |
+          rate(booking_created_total[10m]) < 0.01
+        for: 15m
+        labels:
+          severity: warning
+          component: business
+        annotations:
+          summary: "Low booking rate"
+          description: "Booking rate is {{ $value }} bookings/s (expected: >0.01)"
+
+      # Low Search Rate
+      - alert: LowSearchRate
+        expr: |
+          rate(trip_search_total[10m]) < 0.1
+        for: 15m
+        labels:
+          severity: info
+          component: business
+        annotations:
+          summary: "Low search rate"
+          description: "Search rate is {{ $value }} searches/s (expected: >0.1)"
+
+      # Low Conversion Rate (Search to Booking)
+      - alert: LowConversionRate
+        expr: |
+          (
+            rate(booking_created_total[30m])
+            /
+            rate(trip_search_total[30m])
+          ) < 0.01
+        for: 30m
+        labels:
+          severity: warning
+          component: business
+        annotations:
+          summary: "Low conversion rate"
+          description: "Conversion rate is {{ $value }} (expected: >0.01)"
+
+      # High Trip Creation Errors
+      - alert: HighTripCreationErrors
+        expr: |
+          (
+            rate(trip_creation_errors_total[5m])
+            /
+            rate(trip_created_total[5m])
+          ) > 0.05
+        for: 5m
+        labels:
+          severity: warning
+          component: business
+        annotations:
+          summary: "High trip creation error rate"
+          description: "Trip creation error rate is {{ $value }} (threshold: 0.05)"
+
+      # High Booking Errors
+      - alert: HighBookingErrors
+        expr: |
+          (
+            rate(booking_errors_total[5m])
+            /
+            rate(booking_created_total[5m])
+          ) > 0.05
+        for: 5m
+        labels:
+          severity: warning
+          component: business
+        annotations:
+          summary: "High booking error rate"
+          description: "Booking error rate is {{ $value }} (threshold: 0.05)"
+
+      # No User Activity — приложение живо, но не получает ни одного запроса.
+      # (лейбл endpoint — относительный путь роутера, поэтому фильтр по
+      # /api/v1/... не работал; считаем суммарный трафик)
+      - alert: NoUserActivity
+        expr: |
+          up{job="yoldosh-app"} == 1
+          and
+          sum(rate(http_requests_total[10m])) == 0
+        for: 10m
+        labels:
+          severity: warning
+          component: business
+        annotations:
+          summary: "No user activity detected"
+          description: "App is up but received no HTTP requests in the last 10 minutes"

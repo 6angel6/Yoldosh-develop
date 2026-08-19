@@ -1,0 +1,162 @@
+{
+  "notification": {
+    "booking": {
+      "created": {
+        "passenger": "Ваша поездка забронирована! {{seatsBooked}} место(а) за {{totalPrice}} сум.",
+        "driver": "Новое бронирование! Пассажир забронировал {{seatsBooked}} место(а)."
+      },
+      "confirmed": {
+        "passenger": "Ваше бронирование подтверждено водителем! {{seatsBooked}} место(а) за {{totalPrice}} сум."
+      },
+      "cancelled": {
+        "passenger": "Ваше бронирование отменено.{{cancellationReason}}",
+        "driver": "Бронирование отменено. Места освободились."
+      },
+      "updated": {
+        "passenger": "Бронирование изменено: {{seatsDifference}}",
+        "driver": "Бронирование изменено: пассажир {{seatChangeText}} мест."
+      },
+      "day_reminder": "Ваша поездка {{fromCity}} → {{toCity}} сегодня в {{departureTime}}. Не опаздывайте!"
+    },
+    "parcel": {
+      "created": {
+        "sender": "Запрос на доставку посылки отправлен водителю: {{fromCity}} → {{toCity}}. Цена: {{price}} сум.",
+        "driver": "Новый запрос на доставку посылки: {{fromCity}} → {{toCity}}."
+      },
+      "confirmed": {
+        "sender": "Водитель согласился доставить вашу посылку! Цена: {{price}} сум."
+      },
+      "rejected": {
+        "sender": "Водитель отклонил запрос на доставку посылки.{{reason}}"
+      },
+      "cancelled": {
+        "sender": "Доставка посылки отменена.{{cancellationReason}}",
+        "driver": "Отправитель отменил доставку посылки."
+      },
+      "picked_up": {
+        "sender": "Водитель забрал вашу посылку и везёт её получателю."
+      },
+      "delivered": {
+        "sender": "Ваша посылка доставлена получателю!"
+      }
+    },
+    "trip": {
+      "created": {
+        "driver": "Поездка создана!"
+      },
+      "updated": {
+        "driver": "Поездка обновлена!",
+        "passenger": "Детали поездки {{fromAddress}} → {{toAddress}} были обновлены."
+      },
+      "started": {
+        "passenger": "Ваша поездка началась: {{fromCity}} → {{toCity}}.",
+        "driver": "Поездка началась: {{fromCity}} → {{toCity}}."
+      },
+      "completed": {
+        "passenger": "Поездка завершена: {{fromCity}} → {{toCity}}. Спасибо за поездку!",
+        "driver": "Поездка завершена: {{fromCity}} → {{toCity}}."
+      },
+      "cancelled": {
+        "passenger": "Поездка отменена водителем: {{fromCity}} → {{toCity}}.",
+        "driver": "Поездка отменена: {{fromCity}} → {{toCity}}."
+      },
+      "driver_cancelled": {
+        "booking_refunded": "Ваше бронирование на поездку было отменено водителем. Средства возвращены.",
+        "pending_booking": "Поездка отменена водителем. Ваше ожидающее бронирование автоматически отменено."
+      }
+    },
+    "payment": {
+      "wallet_deposit": "Кошелёк пополнен на {{amount}} сум.",
+      "wallet_deposit_failed": "Не удалось пополнить кошелёк на {{amount}} сум.",
+      "success": "Оплата прошла успешно: {{amount}} сум.",
+      "failed": "Ошибка оплаты"
+    },
+    "wallet": {
+      "negative_balance": {
+        "driver": "Ваш баланс кошелька отрицательный: {{balance}} сум. Пожалуйста, пополните его как можно скорее."
+      }
+    },
+    "rating": {
+      "given": "Вы оценили {{driverName}} на {{rating}}.",
+      "received": "{{passengerName}} оценил(а) вас на {{rating}}"
+    },
+    "search": {
+      "new_trips": "Найдено {{tripCount}} новых поездок {{fromCity}} → {{toCity}}! Посмотрите."
+    },
+    "driver": {
+      "create_trip_reminder_1d": "Создайте вашу первую поездку и начните зарабатывать!",
+      "create_trip_reminder_3d": "Уже 3 дня как вы водитель! Создайте поездку и найдите пассажиров.",
+      "create_trip_reminder_6d": "Не упустите возможность! Создайте поездку сегодня."
+    },
+    "user": {
+      "inactive_5d": "Скучаем по вам! Посмотрите новые поездки.",
+      "inactive_10d": "Давно не виделись! Может пора в путь?",
+      "inactive_20d": "Вернитесь! У нас много новых поездок."
+    },
+    "new_message": "{{senderName}}: {{content}}",
+    "test": {
+      "server_heartbeat": "✅ Система уведомлений активна. Время: {{time}}",
+      "action": "{{action}}. Время: {{time}}"
+    }
+  },
+  "title": {
+    "booking": {
+      "confirmed": "Бронирование подтверждено",
+      "cancelled": "Бронирование отменено",
+      "updated": "Бронирование изменено",
+      "new_passenger": "Новый пассажир",
+      "day_reminder": "Поездка сегодня"
+    },
+    "parcel": {
+      "new_request": "Новая посылка",
+      "confirmed": "Доставка подтверждена",
+      "rejected": "Доставка отклонена",
+      "cancelled": "Доставка отменена",
+      "picked_up": "Посылка у водителя",
+      "delivered": "Посылка доставлена"
+    },
+    "trip": {
+      "created": "Создание поездки",
+      "updated": "Обновление поездки",
+      "started": "Начало поездки",
+      "completed": "Конец поездки",
+      "cancelled": "Отмена поездки"
+    },
+    "payment": {
+      "wallet": "Пополнение кошелька",
+      "booking": "Оплата бронирования"
+    },
+    "rating": "Создание отзыва",
+    "search": {
+      "new_trips": "Новые поездки"
+    },
+    "driver": {
+      "create_trip": "Создайте поездку"
+    },
+    "user": {
+      "comeback": "Вернитесь в Yo'ldosh"
+    },
+    "wallet": {
+      "negative_balance": "Отрицательный баланс кошелька"
+    },
+    "new_message": "Новое сообщение",
+    "test": {
+      "server_heartbeat": "🟢 Сервер работает",
+      "action": "Выполнено действие"
+    }
+  },
+  "error": {
+    "trip": {
+      "not_found": "Поездка не найдена"
+    },
+    "booking": {
+      "failed": "Не удалось забронировать"
+    },
+    "unauthorized": "Требуется авторизация",
+    "forbidden": "Доступ запрещён"
+  },
+  "general": {
+    "welcome": "Добро пожаловать",
+    "thank_you": "Спасибо"
+  }
+}

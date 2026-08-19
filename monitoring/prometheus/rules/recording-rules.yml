@@ -1,0 +1,130 @@
+groups:
+  # API Performance Recording Rules
+  - name: api_performance
+    interval: 30s
+    rules:
+      # Request rate per endpoint (RPS)
+      - record: api:http_requests:rate5m
+        expr: rate(http_requests_total[5m])
+      
+      - record: api:http_requests:rate1m
+        expr: rate(http_requests_total[1m])
+      
+      # Request rate by endpoint
+      - record: api:http_requests_by_endpoint:rate5m
+        expr: sum(rate(http_requests_total[5m])) by (method, endpoint, status)
+      
+      # Error rate (5xx errors)
+      - record: api:http_errors:rate5m
+        expr: rate(http_requests_total{status=~"5.."}[5m])
+      
+      # Error ratio (percentage)
+      - record: api:http_error_ratio:rate5m
+        expr: |
+          sum(rate(http_requests_total{status=~"5.."}[5m])) 
+          / 
+          sum(rate(http_requests_total[5m]))
+      
+      # Client errors (4xx)
+      - record: api:http_client_errors:rate5m
+        expr: rate(http_requests_total{status=~"4.."}[5m])
+      
+      # Latency aggregations (pre-computed percentiles)
+      - record: api:http_request_duration_p50
+        expr: histogram_quantile(0.50, sum(rate(http_request_duration_seconds_bucket[5m])) by (le, endpoint))
+      
+      - record: api:http_request_duration_p95
+        expr: histogram_quantile(0.95, sum(rate(http_request_duration_seconds_bucket[5m])) by (le, endpoint))
+      
+      - record: api:http_request_duration_p99
+        expr: histogram_quantile(0.99, sum(rate(http_request_duration_seconds_bucket[5m])) by (le, endpoint))
+
+  # Business Metrics Recording Rules
+  - name: business_metrics
+    interval: 60s
+    rules:
+      # Trip search rate
+      - record: business:trip_searches:rate1h
+        expr: rate(trip_search_total[1h])
+      
+      # Trip creation rate
+      - record: business:trip_creations:rate1h
+        expr: rate(trip_created_total[1h])
+      
+      # Booking rate
+      - record: business:bookings:rate1h
+        expr: rate(booking_created_total[1h])
+      
+      # Conversion rate (bookings / searches)
+      - record: business:booking_conversion_rate:1h
+        expr: |
+          sum(increase(booking_created_total[1h])) 
+          / 
+          sum(increase(trip_search_total[1h]))
+      
+      # User registrations
+      - record: business:user_registrations:rate1h
+        expr: rate(user_registration_total[1h])
+
+  # Database Performance Recording Rules
+  - name: database_performance
+    interval: 30s
+    rules:
+      # Query rate
+      - record: db:queries:rate5m
+        expr: rate(pg_stat_database_xact_commit[5m]) + rate(pg_stat_database_xact_rollback[5m])
+      
+      # Transaction rate (TPS)
+      - record: db:transactions:rate5m
+        expr: rate(pg_stat_database_xact_commit[5m])
+      
+      # Cache hit ratio
+      - record: db:cache_hit_ratio
+        expr: |
+          sum(pg_stat_database_blks_hit) 
+          / 
+          (sum(pg_stat_database_blks_hit) + sum(pg_stat_database_blks_read))
+      
+      # Active connections
+      - record: db:connections:active
+        expr: pg_stat_activity_count{state="active"}
+
+  # System Resources Recording Rules
+  - name: system_resources
+    interval: 30s
+    rules:
+      # CPU usage (app process; метрики prom-client с префиксом yoldosh_)
+      - record: container:cpu_usage:rate5m
+        expr: rate(yoldosh_process_cpu_seconds_total[5m]) * 100
+
+      # Memory usage (resident)
+      - record: container:memory_usage:bytes
+        expr: yoldosh_process_resident_memory_bytes
+
+      # Heap utilization percentage (used/total) — осмысленно для Node-процесса
+      # (process_virtual_memory_max_bytes prom-client не эмитит)
+      - record: container:memory_usage:percent
+        expr: (yoldosh_nodejs_heap_size_used_bytes / yoldosh_nodejs_heap_size_total_bytes) * 100
+
+  # Redis Performance Recording Rules
+  - name: redis_performance
+    interval: 30s
+    rules:
+      # Commands per second
+      - record: redis:commands:rate5m
+        expr: rate(redis_commands_processed_total[5m])
+      
+      # Hit rate
+      - record: redis:hit_rate
+        expr: |
+          rate(redis_keyspace_hits_total[5m]) 
+          / 
+          (rate(redis_keyspace_hits_total[5m]) + rate(redis_keyspace_misses_total[5m]))
+      
+      # Memory usage
+      - record: redis:memory:used_bytes
+        expr: redis_memory_used_bytes
+      
+      # Connected clients
+      - record: redis:clients:connected
+        expr: redis_connected_clients

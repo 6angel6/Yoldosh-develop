@@ -1,0 +1,162 @@
+{
+  "notification": {
+    "booking": {
+      "created": {
+        "passenger": "Sizning safar buyurtma qilindi! {{seatsBooked}} o'rin {{totalPrice}} so'm uchun.",
+        "driver": "Yangi buyurtma! Yo'lovchi {{seatsBooked}} o'rinni buyurtma qildi."
+      },
+      "confirmed": {
+        "passenger": "Sizning buyurtmangiz haydovchi tomonidan tasdiqlandi! {{seatsBooked}} o'rin {{totalPrice}} so'm uchun."
+      },
+      "cancelled": {
+        "passenger": "Sizning buyurtmangiz bekor qilindi.{{cancellationReason}}",
+        "driver": "Buyurtma bekor qilindi. O'rinlar bo'shatildi."
+      },
+      "updated": {
+        "passenger": "Buyurtma o'zgartirildi: {{seatsDifference}}",
+        "driver": "Buyurtma o'zgartirildi: yo'lovchi {{seatChangeText}} o'rin."
+      },
+      "day_reminder": "Sizning safaringiz {{fromCity}} → {{toCity}} bugun {{departureTime}}da. Kechikmang!"
+    },
+    "parcel": {
+      "created": {
+        "sender": "Yuk yetkazish so'rovi haydovchiga yuborildi: {{fromCity}} → {{toCity}}. Narxi: {{price}} so'm.",
+        "driver": "Yangi yuk yetkazish so'rovi: {{fromCity}} → {{toCity}}."
+      },
+      "confirmed": {
+        "sender": "Haydovchi yukingizni yetkazishga rozi bo'ldi! Narxi: {{price}} so'm."
+      },
+      "rejected": {
+        "sender": "Haydovchi yuk yetkazish so'rovini rad etdi.{{reason}}"
+      },
+      "cancelled": {
+        "sender": "Yuk yetkazish bekor qilindi.{{cancellationReason}}",
+        "driver": "Yuboruvchi yuk yetkazishni bekor qildi."
+      },
+      "picked_up": {
+        "sender": "Haydovchi yukingizni oldi va qabul qiluvchiga olib ketmoqda."
+      },
+      "delivered": {
+        "sender": "Yukingiz qabul qiluvchiga yetkazildi!"
+      }
+    },
+    "trip": {
+      "created": {
+        "driver": "Safar muvaffaqiyatli yaratildi!"
+      },
+      "updated": {
+        "driver": "Safar muvaffaqiyatli yangilandi!",
+        "passenger": "Safar tafsilotlari {{fromAddress}}dan {{toAddress}}gacha yangilandi."
+      },
+      "started": {
+        "passenger": "Sizning safaringiz muvaffaqiyatli boshlandi {{fromCity}}dan {{toCity}}ga.",
+        "driver": "Safar muvaffaqiyatli boshlandi {{fromCity}}dan {{toCity}}ga."
+      },
+      "completed": {
+        "passenger": "Sizning safaringiz muvaffaqiyatli yakunlandi, {{fromCity}}dan {{toCity}}ga. Rahmat safaringiz uchun!",
+        "driver": "Sizning safaringiz muvaffaqiyatli yakunlandi, {{fromCity}}dan {{toCity}}ga."
+      },
+      "cancelled": {
+        "passenger": "Sizning safaringiz haydovchi tomonidan bekor qilindi, {{fromCity}}dan {{toCity}}ga.",
+        "driver": "Sizning safaringiz muvaffaqiyatli bekor qilindi, {{fromCity}}dan {{toCity}}ga."
+      },
+      "driver_cancelled": {
+        "booking_refunded": "Sizning safar buyurtmangiz haydovchi tomonidan bekor qilindi. Mablag'lar qaytarildi.",
+        "pending_booking": "Safar haydovchi tomonidan bekor qilindi. Sizning kutilayotgan buyurtmangiz avtomatik bekor qilindi."
+      }
+    },
+    "payment": {
+      "wallet_deposit": "Hamyon {{amount}} so'mga to'ldirildi.",
+      "wallet_deposit_failed": "Hamyonni {{amount}} so'mga to'ldirish amalga oshmadi.",
+      "success": "To'lov amalga oshirildi: {{amount}} so'm.",
+      "failed": "To'lovda xatolik"
+    },
+    "wallet": {
+      "negative_balance": {
+        "driver": "Sizning hamyoningizda manfiy balans: {{balance}} so'm. Iltimos, imkon qadar tezroq to'ldiring."
+      }
+    },
+    "rating": {
+      "given": "Siz {{driverName}}ni {{rating}} ga baholadingiz.",
+      "received": "{{passengerName}} sizni {{rating}} ga baholadi"
+    },
+    "search": {
+      "new_trips": "{{tripCount}} ta yangi safar topildi {{fromCity}} → {{toCity}}! Ko'rib chiqing."
+    },
+    "driver": {
+      "create_trip_reminder_1d": "Birinchi safaringizni yarating va pul ishlashni boshlang!",
+      "create_trip_reminder_3d": "Haydovchi bo'lganingizga 3 kun bo'ldi! Safar yarating va yo'lovchilarni toping.",
+      "create_trip_reminder_6d": "Imkoniyatni qo'ldan boy bermang! Bugun safar yarating."
+    },
+    "user": {
+      "inactive_5d": "Sizni sog'indik! Yangi safarlarni ko'rib chiqing.",
+      "inactive_10d": "Uzoq vaqt ko'rishmaganmiz! Yo'lga chiqish vaqti kelmadimi?",
+      "inactive_20d": "Qaytib keling! Bizda ko'p yangi safarlar bor."
+    },
+    "new_message": "{{senderName}}: {{content}}",
+    "test": {
+      "server_heartbeat": "✅ Xabarnoma tizimi ishlayapti. Vaqt: {{time}}",
+      "action": "{{action}}. Vaqt: {{time}}"
+    }
+  },
+  "title": {
+    "booking": {
+      "confirmed": "Buyurtma tasdiqlandi",
+      "cancelled": "Buyurtma bekor qilindi",
+      "updated": "Buyurtma o'zgartirildi",
+      "new_passenger": "Yangi yo'lovchi",
+      "day_reminder": "Safar bugun"
+    },
+    "parcel": {
+      "new_request": "Yangi yuk",
+      "confirmed": "Yetkazish tasdiqlandi",
+      "rejected": "Yetkazish rad etildi",
+      "cancelled": "Yetkazish bekor qilindi",
+      "picked_up": "Yuk haydovchida",
+      "delivered": "Yuk yetkazildi"
+    },
+    "trip": {
+      "created": "Safar yaratish",
+      "updated": "Safar yangilanishi",
+      "started": "Safar boshlanishi",
+      "completed": "Safar yakunlanishi",
+      "cancelled": "Safar bekor qilish"
+    },
+    "payment": {
+      "wallet": "Hamyonni to'ldirish",
+      "booking": "Buyurtmani to'lash"
+    },
+    "rating": "Baholash",
+    "search": {
+      "new_trips": "Yangi safarlar"
+    },
+    "driver": {
+      "create_trip": "Safar yarating"
+    },
+    "user": {
+      "comeback": "Yo'ldoshga qaytib keling"
+    },
+    "wallet": {
+      "negative_balance": "Hamyonda manfiy balans"
+    },
+    "new_message": "Yangi xabar",
+    "test": {
+      "server_heartbeat": "🟢 Server ishlayapti",
+      "action": "Harakat bajarildi"
+    }
+  },
+  "error": {
+    "trip": {
+      "not_found": "Safar topilmadi"
+    },
+    "booking": {
+      "failed": "Buyurtma amalga oshmadi"
+    },
+    "unauthorized": "Autorizatsiya talab qilinadi",
+    "forbidden": "Kirish taqiqlanadi"
+  },
+  "general": {
+    "welcome": "Xush kelibsiz",
+    "thank_you": "Rahmat"
+  }
+}

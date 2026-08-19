@@ -1,0 +1,53 @@
+{
+  "development": {
+    "username": "postgres",
+    "password": "your_password",
+    "database": "yoldosh_dev",
+    "host": "localhost",
+    "port": 5432,
+    "dialect": "postgres",
+    "logging": true,
+    "pool": {
+      "max": 5,
+      "min": 0,
+      "acquire": 30000,
+      "idle": 10000
+    }
+  },
+  "test": {
+    "username": "postgres",
+    "password": "your_password",
+    "database": "yoldosh_test",
+    "host": "localhost",
+    "port": 5432,
+    "dialect": "postgres",
+    "logging": false,
+    "pool": {
+      "max": 3,
+      "min": 0,
+      "acquire": 30000,
+      "idle": 10000
+    }
+  },
+  "production": {
+    "username": "postgres_user_from_env",
+    "password": "password_from_env",
+    "database": "database_name_from_env",
+    "host": "db",
+    "port": 5432,
+    "dialect": "postgres",
+    "logging": false,
+    "pool": {
+      "max": 10,
+      "min": 2,
+      "acquire": 60000,
+      "idle": 20000
+    },
+    "dialectOptions": {
+      "ssl": {
+        "require": true,
+        "rejectUnauthorized": false
+      }
+    }
+  }
+}

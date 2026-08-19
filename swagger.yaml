@@ -1,0 +1,5470 @@
+openapi: 3.0.0
+info:
+  title: 'Yoldosh API'
+  version: '2.0-Geo'
+  description: |
+    Yoldosh - Ride-sharing platform API
+servers:
+  - url: 'https://api.yoldosh.uz/api/v1'
+    description: Production server
+  - url: 'https://test-api.yoldosh.uz/api/v1'
+    description: Test server
+  - url: 'http://localhost:5000/api/v1'
+    description: Local server
+
+tags:
+  - name: Health
+    description: Server health check
+  - name: Auth
+    description: Authentication and registration (3-step process)
+  - name: User
+    description: User profile management and preferences
+  - name: User-Cards
+    description: User payment cards (IPAK YOLI integration)
+  - name: Car
+    description: Car and driver verification
+  - name: Trip
+    description: Trip creation, search, updates, and management
+  - name: Booking
+    description: Booking management and payment
+  - name: Payment
+    description: Payment processing and callbacks
+  - name: Wallet
+    description: Wallet balance and transactions
+  - name: Chat
+    description: Chat and real-time messaging
+  - name: Rating
+    description: User ratings and reviews
+  - name: Notification
+    description: Push notifications management
+  - name: Referral
+    description: Referral programs and codes
+  - name: Admin
+    description: Admin panel operations
+  - name: Internal
+    description: Internal API для Python-парсера. Требует заголовок X-Internal-Key.
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+    CookieAuth:
+      type: apiKey
+      in: cookie
+      name: refresh-token
+    InternalKeyAuth:
+      type: apiKey
+      in: header
+      name: X-Internal-Key
+      description: Секретный ключ для внутренних роутов. Задаётся через INTERNAL_API_KEY в .env
+
+  parameters:
+    UserId:
+      name: userId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+      description: User ID
+
+    TripId:
+      name: tripId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+      description: Trip ID
+
+    BookingId:
+      name: bookingId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+      description: Booking ID
+
+    ChatId:
+      name: chatId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+      description: Chat ID
+
+    Page:
+      name: page
+      in: query
+      schema:
+        type: integer
+        default: 1
+        minimum: 1
+      description: Page number
+
+    Limit:
+      name: limit
+      in: query
+      schema:
+        type: integer
+        default: 10
+        minimum: 1
+      description: Items per page
+
+  schemas:
+    # =============== RESPONSE WRAPPERS ===============
+    SuccessResponse:
+      type: object
+      required:
+        - success
+        - status_code
+        - message
+      properties:
+        success:
+          type: boolean
+          example: true
+        status_code:
+          type: integer
+          example: 200
+        message:
+          type: string
+          example: Success.
+        data:
+          type: object
+          description: Response data (optional)
+
+    ErrorResponse:
+      type: object
+      required:
+        - success
+        - status_code
+        - message
+      properties:
+        success:
+          type: boolean
+          example: false
+        status_code:
+          type: integer
+          example: 400
+        message:
+          type: string
+          example: Validation failed.
+        errors:
+          type: array
+          items:
+            type: string
+          description: Array of error messages (optional)
+
+    # =============== ENUMS ===============
+    Gender:
+      type: string
+      enum: [MALE, FEMALE, OTHER]
+
+    UserRole:
+      type: string
+      enum: [Passenger, Driver]
+
+    TripStatus:
+      type: string
+      enum: [CREATED, IN_PROGRESS, COMPLETED, CANCELED]
+
+    BookingStatus:
+      type: string
+      enum: [PENDING, CONFIRMED, FAILED, CANCELLED]
+
+    CarStatus:
+      type: string
+      enum: [WAITING_MYID, PENDING, VERIFIED, REJECTED]
+
+    TransactionType:
+      type: string
+      enum: [DEPOSIT, WITHDRAWAL, PAYMENT, REFUND, COMMISSION, TRANSFER]
+
+    TransactionStatus:
+      type: string
+      enum: [PENDING, COMPLETED, FAILED, CANCELLED]
+
+    PaymentProvider:
+      type: string
+      enum: [IPAK, PAYNET, CLICK, PAYME, OCTO, PLUM, NONE]
+
+    PaymentStatus:
+      type: string
+      enum: [SUCCESS, PENDING, CREATED, FAILED, REVERSED]
+
+    NavigatorPreference:
+      type: string
+      enum: [YANDEX_NAVI, GOOGLE_MAPS, NONE]
+      description: User's preferred navigation app
+
+    GarageStatus:
+      type: string
+      enum: [FULL, EMPTY, HALF_EMPTY]
+      description: Driver's garage availability status
+
+    BookingType:
+      type: string
+      enum: [INSTANT, REQUEST]
+      description: |
+        Booking type for trip:
+        - INSTANT: Booking is confirmed immediately
+        - REQUEST: Booking requires driver confirmation (PENDING status)
+
+    # =============== USER SCHEMA ===============
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        firstName:
+          type: string
+          maxLength: 32
+        lastName:
+          type: string
+          maxLength: 32
+          nullable: true
+        phoneNumber:
+          type: string
+          pattern: '^\+998[0-9]{9}$'
+        avatar:
+          type: string
+          nullable: true
+        bio:
+          type: string
+          maxLength: 128
+          nullable: true
+        gender:
+          $ref: '#/components/schemas/Gender'
+        date_of__birthday:
+          type: string
+          format: date
+          nullable: true
+        rating:
+          type: number
+          format: double
+          example: 4.5
+        role:
+          $ref: '#/components/schemas/UserRole'
+        verified:
+          type: boolean
+        passport_verified:
+          type: boolean
+          nullable: true
+        isBanned:
+          type: boolean
+        banExpiresAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: Ban expiration date (if user is banned)
+        banReason:
+          type: string
+          maxLength: 128
+          nullable: true
+          description: Reason for ban
+        talkative:
+          type: boolean
+          nullable: true
+          description: User prefers talkative drivers/passengers
+        music_allowed:
+          type: boolean
+          nullable: true
+          description: User is okay with music during trip
+        pets_allowed:
+          type: boolean
+          nullable: true
+          description: User prefers trips that allow pets
+        preferred_navigator:
+          $ref: '#/components/schemas/NavigatorPreference'
+          description: User's preferred navigation app
+        isHavePromocode:
+          type: boolean
+          description: Whether user has an active promocode
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    UserMe:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        firstName:
+          type: string
+        lastName:
+          type: string
+          nullable: true
+        phoneNumber:
+          type: string
+        avatar:
+          type: string
+          nullable: true
+        bio:
+          type: string
+          nullable: true
+        gender:
+          $ref: '#/components/schemas/Gender'
+        date_of__birthday:
+          type: string
+          format: date
+          nullable: true
+        rating:
+          type: number
+          format: double
+        role:
+          $ref: '#/components/schemas/UserRole'
+        verified:
+          type: boolean
+        cars:
+          type: array
+          items:
+            $ref: '#/components/schemas/Car'
+        notificationPreferences:
+          type: object
+          properties:
+            trips:
+              type: boolean
+            newsAndAgreement:
+              type: boolean
+            promotionAndDiscounts:
+              type: boolean
+            messages:
+              type: boolean
+            general:
+              type: boolean
+
+    # =============== CAR SCHEMA ===============
+    Car:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        driver_id:
+          type: string
+          format: uuid
+        make:
+          type: string
+          example: Chevrolet
+        model:
+          type: string
+          example: Cobalt
+        year:
+          type: integer
+          example: 2020
+        plate_number:
+          type: string
+        seats_standard:
+          type: integer
+          example: 4
+        color:
+          type: string
+        status:
+          $ref: '#/components/schemas/CarStatus'
+        passport_number:
+          type: string
+          nullable: true
+        carPassportLink:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    # =============== TRIP SCHEMA ===============
+    Coordinates:
+      type: object
+      properties:
+        latitude:
+          type: number
+          format: double
+        longitude:
+          type: number
+          format: double
+
+    Location:
+      type: object
+      properties:
+        address:
+          type: string
+        city:
+          type: string
+        coordinates:
+          $ref: '#/components/schemas/Coordinates'
+        region:
+          type: object
+          properties:
+            id:
+              type: integer
+            nameRu:
+              type: string
+            nameUz:
+              type: string
+            nameEn:
+              type: string
+
+    PriceInfo:
+      type: object
+      properties:
+        final_price:
+          type: integer
+          description: Total price including service fee
+          example: 55000
+        driver_base_price:
+          type: integer
+          description: Price set by driver
+          example: 50000
+        service_fee:
+          type: integer
+          description: 10% service fee
+          example: 5000
+        currency:
+          type: string
+          example: UZS
+        promocode:
+          type: object
+          properties:
+            discounted:
+              type: integer
+              nullable: true
+            discount_percentage:
+              type: integer
+              example: 10
+            has_active_promocode:
+              type: boolean
+
+    Trip:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        driver_id:
+          type: string
+          format: uuid
+        car_id:
+          type: string
+          format: uuid
+        from_city:
+          type: string
+          description: Departure city name
+        to_city:
+          type: string
+          description: Arrival city name
+        from_latitude:
+          type: number
+          format: double
+        from_longitude:
+          type: number
+          format: double
+        to_latitude:
+          type: number
+          format: double
+        to_longitude:
+          type: number
+          format: double
+        from_address:
+          type: string
+          description: Departure address
+        to_address:
+          type: string
+          description: Arrival address
+        distance:
+          type: integer
+          description: Distance in km
+          example: 25
+        duration:
+          type: integer
+          description: Duration in minutes
+          example: 45
+        departure_ts:
+          type: string
+          format: date-time
+        seats_available:
+          type: integer
+          example: 3
+        price:
+          $ref: '#/components/schemas/PriceInfo'
+        max_two_back:
+          type: boolean
+          description: Max 2 passengers can sit in back
+        conditioner:
+          type: boolean
+          description: Air conditioning available
+          example: true
+        smoking_allowed:
+          type: boolean
+          description: Smoking is allowed in the car
+          example: false
+        door_pickup:
+          type: boolean
+          description: Door-to-door pickup service
+          example: true
+        food_stop:
+          type: boolean
+          description: Food stops allowed during trip
+          example: false
+        garage:
+          $ref: '#/components/schemas/GarageStatus'
+        parcels_allowed:
+          type: boolean
+          description: Driver accepts parcel delivery on this trip
+          example: false
+        parcel_price:
+          type: number
+          format: double
+          nullable: true
+          description: Price per parcel; null means price_per_person is used
+          example: 40000
+        booking_type:
+          $ref: '#/components/schemas/BookingType'
+          description: |
+            Type of booking for this trip:
+            - INSTANT: Passengers are confirmed immediately upon booking
+            - REQUEST: Passengers must wait for driver approval (status PENDING)
+        comment:
+          type: string
+          nullable: true
+        status:
+          $ref: '#/components/schemas/TripStatus'
+        driver:
+          $ref: '#/components/schemas/User'
+        car:
+          $ref: '#/components/schemas/Car'
+        bookings:
+          type: array
+          items:
+            $ref: '#/components/schemas/Booking'
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+        trip_start_ts:
+          type: string
+          format: date-time
+          nullable: true
+        trip_end_ts:
+          type: string
+          format: date-time
+          nullable: true
+
+    # =============== BOOKING SCHEMA ===============
+    Booking:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        tripId:
+          type: string
+          format: uuid
+        passengerId:
+          type: string
+          format: uuid
+        seatsBooked:
+          type: integer
+          example: 2
+        totalPrice:
+          type: number
+          format: double
+          example: 110000
+        status:
+          $ref: '#/components/schemas/BookingStatus'
+        pickup_location:
+          type: object
+          description: Formatted pickup location (returned by API)
+          properties:
+            city:
+              type: string
+            address:
+              type: string
+            coordinates:
+              type: object
+              properties:
+                latitude:
+                  type: number
+                  format: double
+                longitude:
+                  type: number
+                  format: double
+        dropoff_location:
+          type: object
+          description: Formatted dropoff location (returned by API)
+          properties:
+            city:
+              type: string
+            address:
+              type: string
+            coordinates:
+              type: object
+              properties:
+                latitude:
+                  type: number
+                  format: double
+                longitude:
+                  type: number
+                  format: double
+        cancellationReason:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    # =============== PARCEL SCHEMA (MVP) ===============
+    ParcelStatus:
+      type: string
+      enum: [PENDING, CONFIRMED, REJECTED, CANCELLED, PICKED_UP, DELIVERED]
+      description: |
+        Parcel delivery status:
+        - PENDING: waiting for driver approval (REQUEST trips only)
+        - CONFIRMED: driver agreed to deliver (immediately on INSTANT trips)
+        - REJECTED: driver declined the request
+        - CANCELLED: cancelled by sender or by trip cancellation
+        - PICKED_UP: driver picked the parcel up from the sender
+        - DELIVERED: parcel handed to the recipient
+
+    Parcel:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        trip_id:
+          type: string
+          format: uuid
+        sender_id:
+          type: string
+          format: uuid
+        price:
+          type: number
+          format: double
+          example: 40000
+        status:
+          $ref: '#/components/schemas/ParcelStatus'
+        pickup_location:
+          type: object
+          description: Where the driver picks the parcel up
+          properties:
+            city:
+              type: string
+            address:
+              type: string
+            coordinates:
+              type: object
+              properties:
+                latitude:
+                  type: number
+                  format: double
+                longitude:
+                  type: number
+                  format: double
+        dropoff_location:
+          type: object
+          description: Where the parcel is handed to the recipient
+          properties:
+            city:
+              type: string
+            address:
+              type: string
+            coordinates:
+              type: object
+              properties:
+                latitude:
+                  type: number
+                  format: double
+                longitude:
+                  type: number
+                  format: double
+        cancellation_reason:
+          type: string
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    # =============== PAYMENT & TRANSACTION SCHEMA ===============
+    Transaction:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        walletId:
+          type: string
+          format: uuid
+          nullable: true
+        type:
+          $ref: '#/components/schemas/TransactionType'
+        amount:
+          type: number
+          format: double
+          example: 50000
+        status:
+          $ref: '#/components/schemas/TransactionStatus'
+        description:
+          type: string
+        relatedEntityId:
+          type: string
+          format: uuid
+          nullable: true
+        relatedEntityType:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    Payment:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        transactionId:
+          type: string
+          format: uuid
+        provider:
+          $ref: '#/components/schemas/PaymentProvider'
+        providerTransactionId:
+          type: string
+        status:
+          $ref: '#/components/schemas/PaymentStatus'
+        amount:
+          type: number
+          format: double
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    Wallet:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        userId:
+          type: string
+          format: uuid
+        balance:
+          type: number
+          format: double
+          example: 250000
+        currency:
+          type: string
+          example: UZS
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    # =============== CHAT SCHEMA ===============
+    Message:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        chatId:
+          type: string
+          format: uuid
+        senderId:
+          type: string
+          format: uuid
+        content:
+          type: string
+        mediaUrl:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+
+    Chat:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        tripId:
+          type: string
+          format: uuid
+        participant1Id:
+          type: string
+          format: uuid
+        participant2Id:
+          type: string
+          format: uuid
+        isBlocked:
+          type: boolean
+          description: Indicates if the other participant is blocked by the current user
+        lastMessageAt:
+          type: string
+          format: date-time
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        messages:
+          type: array
+          items:
+            $ref: '#/components/schemas/Message'
+
+    # =============== RATING SCHEMA ===============
+    Rating:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        tripId:
+          type: string
+          format: uuid
+        ratedUserId:
+          type: string
+          format: uuid
+        ratingUserId:
+          type: string
+          format: uuid
+        rating:
+          type: integer
+          minimum: 1
+          maximum: 5
+          example: 5
+        feedback:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+
+    # =============== NOTIFICATION SCHEMA ===============
+    Notification:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        userId:
+          type: string
+          format: uuid
+        type:
+          type: string
+          enum: [trips, newsAndAgreement, promotionAndDiscounts, messages, general]
+        title:
+          type: string
+        body:
+          type: string
+        isRead:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+
+    # =============== REGION SCHEMA ===============
+    Region:
+      type: object
+      properties:
+        id:
+          type: integer
+        nameRu:
+          type: string
+        nameUz:
+          type: string
+        nameOz:
+          type: string
+          nullable: true
+        nameEn:
+          type: string
+          nullable: true
+
+  requestBodies:
+    PhoneNumber:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [phoneNumber]
+            properties:
+              phoneNumber:
+                type: string
+                pattern: '^\+998[0-9]{9}$'
+                example: '+998901234567'
+
+    VerifyOtp:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [phoneNumber, otp]
+            properties:
+              phoneNumber:
+                type: string
+                pattern: '^\+998[0-9]{9}$'
+                example: '+998901234567'
+              otp:
+                type: string
+                example: '0000'
+
+    CompleteProfile:
+      required: true
+      content:
+        multipart/form-data:
+          schema:
+            type: object
+            required:
+              - userId
+              - firstName
+            properties:
+              userId:
+                type: string
+                format: uuid
+                description: User ID from step 2
+              firstName:
+                type: string
+                minLength: 1
+                maxLength: 32
+                description: User's first name
+              avatar:
+                type: string
+                format: binary
+                description: User avatar image (JPEG, PNG, WEBP, max 5MB)
+              referralCode:
+                type: string
+                minLength: 3
+                maxLength: 20
+                description: Optional referral code
+
+    UpdateProfile:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              firstName:
+                type: string
+                maxLength: 32
+              lastName:
+                type: string
+                maxLength: 32
+                nullable: true
+              bio:
+                type: string
+                maxLength: 128
+                nullable: true
+              gender:
+                $ref: '#/components/schemas/Gender'
+              date_of__birthday:
+                type: string
+                format: date
+              talkative:
+                type: boolean
+                description: User prefers talkative drivers/passengers
+              music_allowed:
+                type: boolean
+                description: User is okay with music during trip
+              pets_allowed:
+                type: boolean
+                description: User prefers trips that allow pets
+              preferred_navigator:
+                $ref: '#/components/schemas/NavigatorPreference'
+                description: Preferred navigation app
+              notificationPreferences:
+                type: object
+                properties:
+                  trips:
+                    type: boolean
+                  newsAndAgreement:
+                    type: boolean
+                  promotionAndDiscounts:
+                    type: boolean
+                  messages:
+                    type: boolean
+                  general:
+                    type: boolean
+
+    CreateTrip:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+              - car_id
+              - from_latitude
+              - from_longitude
+              - to_latitude
+              - to_longitude
+              - departure_ts
+              - seats_available
+              - price_per_person
+            properties:
+              car_id:
+                type: string
+                format: uuid
+              from_latitude:
+                type: number
+                format: double
+                example: 41.2995
+              from_longitude:
+                type: number
+                format: double
+                example: 69.2401
+              to_latitude:
+                type: number
+                format: double
+                example: 40.7580
+              to_longitude:
+                type: number
+                format: double
+                example: 72.2997
+              distance:
+                type: number
+                format: double
+                nullable: true
+                description: Distance in km
+              duration:
+                type: number
+                format: double
+                nullable: true
+                description: Duration in minutes
+              departure_ts:
+                type: string
+                format: date-time
+                example: '2024-12-20T14:30:00Z'
+              seats_available:
+                type: integer
+                minimum: 1
+                example: 4
+              price_per_person:
+                type: number
+                format: double
+                example: 50000
+              max_two_back:
+                type: boolean
+                default: false
+                description: Maximum 2 passengers in back seat
+              conditioner:
+                type: boolean
+                default: false
+                description: Air conditioning available in the car
+              smoking_allowed:
+                type: boolean
+                default: false
+                description: Smoking allowed during the trip
+              door_pickup:
+                type: boolean
+                default: false
+                description: Door-to-door pickup service
+              food_stop:
+                type: boolean
+                default: false
+                description: Food stops allowed during trip
+              garage:
+                type: string
+                enum: [FULL, EMPTY, HALF_EMPTY]
+                default: EMPTY
+                description: Garage/trunk space availability
+              parcels_allowed:
+                type: boolean
+                default: false
+                description: Driver accepts parcel delivery on this trip
+              parcel_price:
+                type: number
+                nullable: true
+                description: Price per parcel; if omitted, price_per_person is used
+              booking_type:
+                type: string
+                enum: [INSTANT, REQUEST]
+                default: INSTANT
+                description: 'Booking confirmation type: INSTANT - automatic booking, REQUEST - requires driver approval'
+              comment:
+                type: string
+                maxLength: 255
+                nullable: true
+
+    CreateBooking:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+              - tripId
+              - pickup_latitude
+              - pickup_longitude
+              - dropoff_latitude
+              - dropoff_longitude
+              - seatsBooked
+            properties:
+              tripId:
+                type: string
+                format: uuid
+                description: ID of the trip to book
+              pickup_latitude:
+                type: number
+                format: double
+                description: Pickup point latitude
+                example: 41.2995
+              pickup_longitude:
+                type: number
+                format: double
+                description: Pickup point longitude
+                example: 69.2401
+              dropoff_latitude:
+                type: number
+                format: double
+                description: Dropoff point latitude
+                example: 40.7580
+              dropoff_longitude:
+                type: number
+                format: double
+                description: Dropoff point longitude
+                example: 72.2997
+              seatsBooked:
+                type: integer
+                minimum: 1
+                example: 2
+                description: Number of seats to book
+
+    CreateParcel:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required:
+              - tripId
+              - pickup_latitude
+              - pickup_longitude
+              - dropoff_latitude
+              - dropoff_longitude
+            properties:
+              tripId:
+                type: string
+                format: uuid
+                description: ID of the trip (must have parcels_allowed = true)
+              pickup_latitude:
+                type: number
+                format: double
+                description: Point A latitude — where the driver picks the parcel up
+                example: 41.2995
+              pickup_longitude:
+                type: number
+                format: double
+                description: Point A longitude — where the driver picks the parcel up
+                example: 69.2401
+              dropoff_latitude:
+                type: number
+                format: double
+                description: Point B latitude — where the parcel is dropped off
+                example: 39.6517
+              dropoff_longitude:
+                type: number
+                format: double
+                description: Point B longitude — where the parcel is dropped off
+                example: 66.9513
+
+    PayForBookingWithCard:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [bookingId, userCardId]
+            properties:
+              bookingId:
+                type: string
+                format: uuid
+              userCardId:
+                type: string
+                format: uuid
+
+    StartChat:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [tripId, participant2Id]
+            properties:
+              tripId:
+                type: string
+                format: uuid
+              participant2Id:
+                type: string
+                format: uuid
+                description: ID of the second participant
+
+    SendMessage:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              content:
+                type: string
+              mediaUrl:
+                type: string
+                nullable: true
+
+    CreateRating:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [tripId, ratedUserId, rating]
+            properties:
+              tripId:
+                type: string
+                format: uuid
+              ratedUserId:
+                type: string
+                format: uuid
+              rating:
+                type: integer
+                minimum: 1
+                maximum: 5
+              feedback:
+                type: string
+                nullable: true
+
+  responses:
+    Success:
+      description: Operation successful
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/SuccessResponse'
+
+    CreatedSuccess:
+      description: Resource created successfully
+      content:
+        application/json:
+          schema:
+            allOf:
+              - $ref: '#/components/schemas/SuccessResponse'
+
+    BadRequest:
+      description: Bad request - dto error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+    Unauthorized:
+      description: Unauthorized - missing or invalid token
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+    Forbidden:
+      description: Forbidden - insufficient permissions
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+    Conflict:
+      description: Conflict - resource already exists
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+    InternalError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+paths:
+  /health:
+    get:
+      tags: [Health]
+      summary: Health check
+      responses:
+        '200':
+          description: Server is healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: 'healthy'
+
+  # ===================== AUTH ENDPOINTS =====================
+  /auth/guest:
+    post:
+      tags: [Auth]
+      summary: Create or get guest user
+      description: |
+        Create a new guest user or return existing guest user by guestId and fcmToken.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - guestId
+                - fcmToken
+              properties:
+                guestId:
+                  type: string
+                  description: Unique guest user ID (UUID or random string)
+                fcmToken:
+                  type: string
+                  description: FCM token for push notifications
+            example:
+              guestId: "123e4567-e89b-12d3-a456-426614174000"
+              fcmToken: "fcm_token_example"
+      responses:
+        '200':
+          description: Guest user created or fetched successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  guestId:
+                    type: string
+                  firstName:
+                    type: string
+              example:
+                guestId: "123e4567-e89b-12d3-a456-426614174000"
+                firstName: "Guest"
+  /auth/request-otp:
+    post:
+      tags: [Auth]
+      summary: Request OTP
+      description: Request OTP for login or registration. Optionally accepts guestId to link guest user.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - phoneNumber
+              properties:
+                phoneNumber:
+                  type: string
+                  description: Phone number in format +998XXXXXXXXX
+                  example: "+998901234567"
+                guestId:
+                  type: string
+                  format: uuid
+                  description: Optional guest user ID to link guest with real user
+            example:
+              phoneNumber: "+998901234567"
+              guestId: "123e4567-e89b-12d3-a456-426614174000"
+      responses:
+        '200':
+          $ref: '#/components/responses/Success'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '409':
+          description: User already verified
+          $ref: '#/components/responses/Conflict'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /auth/verify-otp:
+    post:
+      tags: [Auth]
+      summary: Verify OTP
+      description: Verify OTP and proceed with login or registration
+      requestBody:
+        $ref: '#/components/requestBodies/VerifyOtp'
+      responses:
+        '200':
+          description: OTP verified successfully
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - type: object
+                    description: Login response
+                    properties:
+                      success:
+                        type: boolean
+                      data:
+                        type: object
+                        properties:
+                          accessToken:
+                            type: string
+                          refreshToken:
+                            type: string
+                          expiresIn:
+                            type: number
+                          user:
+                            $ref: '#/components/schemas/User'
+                      message:
+                        type: string
+                  - type: object
+                    description: Continue registration response
+                    properties:
+                      success:
+                        type: boolean
+                      data:
+                        type: object
+                        properties:
+                          userId:
+                            type: string
+                            format: uuid
+                      message:
+                        type: string
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /auth/complete-profile:
+    post:
+      tags: [Auth]
+      summary: Complete profile (registration step 3)
+      description: |
+        Complete user profile after OTP verification.
+        Upload avatar image (optional) and provide user details.
+        Supported image formats: JPEG, PNG, WEBP (max 5MB)
+      requestBody:
+        $ref: '#/components/requestBodies/CompleteProfile'
+      responses:
+        '201':
+          description: Registration completed successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          accessToken:
+                            type: string
+                          refreshToken:
+                            type: string
+                          expiresIn:
+                            type: integer
+                          user:
+                            $ref: '#/components/schemas/User'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /auth/refresh-token:
+    post:
+      tags: [Auth]
+      summary: Refresh access token
+      responses:
+        '200':
+          description: Token refreshed successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+                    properties:
+                      accessToken:
+                        type: string
+                      refreshToken:
+                        type: string
+                      expiresIn:
+                        type: number
+                  message:
+                    type: string
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /auth/logout:
+    post:
+      tags: [Auth]
+      summary: Logout
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          $ref: '#/components/responses/Success'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  # ===================== USER ENDPOINTS =====================
+  /user/me:
+    get:
+      tags: [User]
+      summary: Get current user profile
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: User profile retrieved with cars and notification preferences
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    $ref: '#/components/schemas/UserMe'
+                  message:
+                    type: string
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /user/me/profile:
+    get:
+      tags: [User]
+      summary: Get full user profile
+      description: Returns complete user profile information
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: User profile retrieved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: Success.
+                  data:
+                    type: object
+                    properties:
+                      user:
+                        $ref: '#/components/schemas/User'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    patch:
+      tags: [User]
+      summary: Update user profile
+      security:
+        - BearerAuth: []
+      requestBody:
+        $ref: '#/components/requestBodies/UpdateProfile'
+      responses:
+        '200':
+          description: Profile updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: Profile updated successfully
+                  data:
+                    type: object
+                    properties:
+                      user:
+                        $ref: '#/components/schemas/User'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /user/{userId}:
+    get:
+      tags: [User]
+      summary: Get user by ID
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+      responses:
+        '200':
+          description: User found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    $ref: '#/components/schemas/User'
+                  message:
+                    type: string
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /user/avatar:
+    put:
+      tags: [User]
+      summary: Update user avatar
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file:
+                  type: string
+                  format: binary
+      responses:
+        '200':
+          description: Avatar updated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+                    properties:
+                      user:
+                        $ref: '#/components/schemas/User'
+                  message:
+                    type: string
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /user/fcm-token:
+    post:
+      tags: [User]
+      summary: Update FCM token
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [fcmToken]
+              properties:
+                fcmToken:
+                  type: string
+      responses:
+        '200':
+          $ref: '#/components/responses/Success'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  /user/account:
+    delete:
+      tags: [User]
+      summary: Delete user account
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          $ref: '#/components/responses/Success'
+
+  /user/delete-by-phone:
+    delete:
+      tags: [User]
+      summary: Delete user by phone number
+      description: Deletes a user account using their phone number. Requires Bearer Auth.
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - phoneNumber
+              properties:
+                phoneNumber:
+                  type: string
+                  description: User's phone number
+                  example: '+998901234567'
+      responses:
+        '200':
+          $ref: '#/components/responses/Success'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /user/block-user:
+    post:
+      tags: [User]
+      summary: Block user
+      description: Block another user. Once blocked, both users cannot see each other's trips, profiles, or send messages.
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - userId
+              properties:
+                userId:
+                  type: string
+                  format: uuid
+                  description: ID of the user to block
+      responses:
+        '200':
+          $ref: '#/components/responses/Success'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /user/unblock-user:
+    post:
+      tags: [User]
+      summary: Unblock user
+      description: Unblock a previously blocked user.
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - userId
+              properties:
+                userId:
+                  type: string
+                  format: uuid
+                  description: ID of the user to unblock
+      responses:
+        '200':
+          $ref: '#/components/responses/Success'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /user/blocked-users:
+    get:
+      tags: [User]
+      summary: Get list of blocked users
+      description: Get all users that the current user has blocked.
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: List of blocked users
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          blockedUsers:
+                            type: array
+                            items:
+                              type: object
+                              properties:
+                                id:
+                                  type: string
+                                  format: uuid
+                                firstName:
+                                  type: string
+                                lastName:
+                                  type: string
+                                  nullable: true
+                                avatar:
+                                  type: string
+                                  nullable: true
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  # ===================== USER CARD ENDPOINTS =====================
+  /card/createUserCard:
+    post:
+      tags: [User-Cards]
+      summary: Create user card (IPAK YOLI)
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Card creation URLs received
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+                    properties:
+                      tokenizeUrl:
+                        type: string
+                      contractCreateUrl:
+                        type: string
+                  message:
+                    type: string
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /card/getAllUsersCards:
+    get:
+      tags: [User-Cards]
+      summary: Get user cards
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: User cards retrieved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: integer
+                        cardNumber:
+                          type: string
+                        contractId:
+                          type: string
+                        createdAt:
+                          type: string
+                          format: date-time
+                  message:
+                    type: string
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /card/deleteCard:
+    delete:
+      tags: [User-Cards]
+      summary: Delete user card
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [userCardId]
+              properties:
+                userCardId:
+                  type: integer
+      responses:
+        '200':
+          $ref: '#/components/responses/Success'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  # ===================== CAR ENDPOINTS =====================
+  /car:
+    post:
+      tags: [Car]
+      summary: Create car
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [make, model, year, plate_number, seats_standard, color]
+              properties:
+                make:
+                  type: string
+                model:
+                  type: string
+                year:
+                  type: integer
+                plate_number:
+                  type: string
+                seats_standard:
+                  type: integer
+                  minimum: 1
+                color:
+                  type: string
+      responses:
+        '201':
+          $ref: '#/components/responses/CreatedSuccess'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /car/my-cars:
+    get:
+      tags: [Car]
+      summary: Get my cars
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Cars retrieved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Car'
+                  message:
+                    type: string
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /car/{carId}:
+    get:
+      tags: [Car]
+      summary: Get car by ID
+      parameters:
+        - name: carId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Car retrieved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    $ref: '#/components/schemas/Car'
+                  message:
+                    type: string
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    patch:
+      tags: [Car]
+      summary: Update car
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: carId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '200':
+          $ref: '#/components/responses/Success'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    delete:
+      tags: [Car]
+      summary: Delete car
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: carId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          $ref: '#/components/responses/Success'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # ===================== TRIP ENDPOINTS =====================
+  /trip:
+    post:
+      tags: [Trip]
+      summary: Create trip
+      security:
+        - BearerAuth: []
+      requestBody:
+        $ref: '#/components/requestBodies/CreateTrip'
+      responses:
+        '201':
+          description: Trip created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+                    properties:
+                      trip:
+                        $ref: '#/components/schemas/Trip'
+                  message:
+                    type: string
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /trip/search:
+    get:
+      tags: [Trip]
+      summary: Search trips with filters and sorting
+      description: |
+        Search for trips by location, date, and apply optional filters and sorting.
+        
+        **Sorting**: You can sort by either price OR time, not both at the same time.
+        - `sort_by_price`: cheapest | expensive
+        - `sort_by_time`: earliest | latest
+        
+        **Filters**: All filter parameters are optional.
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: from_latitude
+          in: query
+          required: true
+          schema:
+            type: number
+            format: double
+          description: Departure latitude coordinate
+          example: 41.322550
+        - name: from_longitude
+          in: query
+          required: true
+          schema:
+            type: number
+            format: double
+          description: Departure longitude coordinate
+          example: 69.280380
+        - name: to_latitude
+          in: query
+          required: true
+          schema:
+            type: number
+            format: double
+          description: Arrival latitude coordinate
+          example: 39.651766
+        - name: to_longitude
+          in: query
+          required: true
+          schema:
+            type: number
+            format: double
+          description: Arrival longitude coordinate
+          example: 66.951389
+        - name: departure_date
+          in: query
+          required: true
+          schema:
+            type: string
+            format: date-time
+          description: Departure date in ISO 8601 format (must be in the future)
+          example: '2026-01-15T00:00:00Z'
+        - name: requested_seats
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+          description: Number of seats requested (default 1)
+        - name: sort_by_price
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [cheapest, expensive]
+          description: Sort trips by price
+        - name: sort_by_time
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [earliest, latest]
+          description: Sort trips by departure time (cannot be used with sort_by_price)
+        - name: conditioner
+          in: query
+          required: false
+          schema:
+            type: boolean
+          description: Filter by air conditioning availability
+        - name: smoking_allowed
+          in: query
+          required: false
+          schema:
+            type: boolean
+          description: Filter by smoking policy
+        - name: door_pickup
+          in: query
+          required: false
+          schema:
+            type: boolean
+          description: Filter by door-to-door pickup service
+        - name: food_stop
+          in: query
+          required: false
+          schema:
+            type: boolean
+          description: Filter by food stop availability
+        - name: garage
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [FULL, EMPTY, HALF_EMPTY]
+          description: Filter by garage/trunk space availability
+        - name: parcels_allowed
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: ['true', 'false']
+          description: 'true: only trips where the driver accepts parcels (parcel delivery search)'
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: Trips found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+                    properties:
+                      trips:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Trip'
+                      total:
+                        type: integer
+                      currentPage:
+                        type: integer
+                      totalPages:
+                        type: integer
+                  message:
+                    type: string
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  /trip/{tripId}:
+    get:
+      tags: [Trip]
+      summary: Get trip details
+      security:
+        - BearerAuth: []
+      description: |
+        Returns trip details with different response structure based on user type and access token:
+        - **Driver (trip owner)**: Full trip details with revenue, commission, and driver payout information
+        - **Passenger (has booking)**: Trip details with personal booking price and promocode discount
+        - **Anonymous/Other users**: Basic trip information without pricing details
+      parameters:
+        - $ref: '#/components/parameters/TripId'
+      responses:
+        '200':
+          description: Trip found - response varies by user type
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - type: object
+                    description: Response for Driver (trip owner)
+                    properties:
+                      success:
+                        type: boolean
+                        example: true
+                      status_code:
+                        type: integer
+                        example: 200
+                      message:
+                        type: string
+                        example: Successfully fetched trip
+                      data:
+                        type: object
+                        properties:
+                          trip:
+                            type: object
+                            properties:
+                              id:
+                                type: string
+                                format: uuid
+                              departure_ts:
+                                type: string
+                                format: date-time
+                              seats_available:
+                                type: integer
+                              price_per_person:
+                                type: number
+                              max_two_back:
+                                type: boolean
+                              comment:
+                                type: string
+                                nullable: true
+                              status:
+                                $ref: '#/components/schemas/TripStatus'
+                              trip_start_ts:
+                                type: string
+                                format: date-time
+                                nullable: true
+                              trip_end_ts:
+                                type: string
+                                format: date-time
+                                nullable: true
+                              createdAt:
+                                type: string
+                                format: date-time
+                              driver:
+                                type: object
+                                properties:
+                                  id:
+                                    type: string
+                                  smoking_allowed:
+                                    type: boolean
+                                  pets_allowed:
+                                    type: boolean
+                                  door_pickup:
+                                    type: boolean
+                                  food_stop:
+                                    type: boolean
+                                  garage:
+                                    $ref: '#/components/schemas/GarageStatus'
+                              car:
+                                type: object
+                                properties:
+                                  id:
+                                    type: string
+                                  make:
+                                    type: string
+                                  model:
+                                    type: string
+                                  gov_number:
+                                    type: string
+                                  color:
+                                    type: string
+                              duration:
+                                type: integer
+                              distance:
+                                type: integer
+                              bookings:
+                                type: array
+                                items:
+                                  type: object
+                                  properties:
+                                    id:
+                                      type: string
+                                    seatsBooked:
+                                      type: integer
+                                    status:
+                                      $ref: '#/components/schemas/BookingStatus'
+                                    passenger:
+                                      type: object
+                                      properties:
+                                        id:
+                                          type: string
+                                        firstName:
+                                          type: string
+                                        lastName:
+                                          type: string
+                                        gender:
+                                          $ref: '#/components/schemas/Gender'
+                                        avatar:
+                                          type: string
+                                        rating:
+                                          type: number
+                              from_location:
+                                type: object
+                                properties:
+                                  address:
+                                    type: string
+                                  city:
+                                    type: string
+                                  coordinates:
+                                    type: object
+                                    properties:
+                                      latitude:
+                                        type: number
+                                      longitude:
+                                        type: number
+                              to_location:
+                                type: object
+                                properties:
+                                  address:
+                                    type: string
+                                  city:
+                                    type: string
+                                  coordinates:
+                                    type: object
+                                    properties:
+                                      latitude:
+                                        type: number
+                                      longitude:
+                                        type: number
+                              driver_price:
+                                type: object
+                                description: Financial information for driver
+                                properties:
+                                  total_bookings_price:
+                                    type: number
+                                    description: Total revenue from all confirmed bookings
+                                    example: 200000
+                                  price_per_person:
+                                    type: number
+                                    example: 50000
+                                  total_seats_booked:
+                                    type: integer
+                                    description: Total confirmed seats
+                                    example: 4
+                                  commission:
+                                    type: object
+                                    properties:
+                                      percentage:
+                                        type: number
+                                        example: 10
+                                      amount:
+                                        type: number
+                                        example: 20000
+                                  driver_payout:
+                                    type: number
+                                    description: Amount driver will receive after commission
+                                    example: 180000
+                                  currency:
+                                    type: string
+                                    example: UZS
+                  - type: object
+                    description: Response for Passenger (has booking)
+                    properties:
+                      success:
+                        type: boolean
+                        example: true
+                      status_code:
+                        type: integer
+                        example: 200
+                      message:
+                        type: string
+                        example: Successfully fetched trip
+                      data:
+                        type: object
+                        properties:
+                          trip:
+                            type: object
+                            properties:
+                              id:
+                                type: string
+                                format: uuid
+                              departure_ts:
+                                type: string
+                                format: date-time
+                              seats_available:
+                                type: integer
+                              price_per_person:
+                                type: number
+                              max_two_back:
+                                type: boolean
+                              comment:
+                                type: string
+                                nullable: true
+                              status:
+                                $ref: '#/components/schemas/TripStatus'
+                              trip_start_ts:
+                                type: string
+                                format: date-time
+                                nullable: true
+                              trip_end_ts:
+                                type: string
+                                format: date-time
+                                nullable: true
+                              createdAt:
+                                type: string
+                                format: date-time
+                              driver:
+                                type: object
+                                properties:
+                                  id:
+                                    type: string
+                                  smoking_allowed:
+                                    type: boolean
+                                  pets_allowed:
+                                    type: boolean
+                                  door_pickup:
+                                    type: boolean
+                                  food_stop:
+                                    type: boolean
+                                  garage:
+                                    $ref: '#/components/schemas/GarageStatus'
+                              car:
+                                type: object
+                                properties:
+                                  id:
+                                    type: string
+                                  make:
+                                    type: string
+                                  model:
+                                    type: string
+                                  gov_number:
+                                    type: string
+                                  color:
+                                    type: string
+                              duration:
+                                type: integer
+                              distance:
+                                type: integer
+                              bookings:
+                                type: array
+                                items:
+                                  type: object
+                              from_location:
+                                type: object
+                                properties:
+                                  address:
+                                    type: string
+                                  city:
+                                    type: string
+                                  coordinates:
+                                    type: object
+                                    properties:
+                                      latitude:
+                                        type: number
+                                      longitude:
+                                        type: number
+                              to_location:
+                                type: object
+                                properties:
+                                  address:
+                                    type: string
+                                  city:
+                                    type: string
+                                  coordinates:
+                                    type: object
+                                    properties:
+                                      latitude:
+                                        type: number
+                                      longitude:
+                                        type: number
+                              booking_price:
+                                type: object
+                                description: Personal booking price for this passenger
+                                properties:
+                                  price_per_person:
+                                    type: number
+                                    example: 50000
+                                  seats_booked:
+                                    type: integer
+                                    description: Seats booked by this passenger
+                                    example: 2
+                                  total_price:
+                                    type: number
+                                    description: Total price for this passenger's booking
+                                    example: 100000
+                                  currency:
+                                    type: string
+                                    example: UZS
+                                  promocode:
+                                    type: object
+                                    properties:
+                                      has_active_promocode:
+                                        type: boolean
+                                        example: true
+                                      discount_percentage:
+                                        type: number
+                                        example: 10
+                                      discounted_amount:
+                                        type: number
+                                        description: Amount saved with promocode
+                                        example: 5000
+                  - type: object
+                    description: Response for Anonymous/Other users (no booking)
+                    properties:
+                      success:
+                        type: boolean
+                        example: true
+                      status_code:
+                        type: integer
+                        example: 200
+                      message:
+                        type: string
+                        example: Successfully fetched trip
+                      data:
+                        type: object
+                        properties:
+                          trip:
+                            type: object
+                            properties:
+                              id:
+                                type: string
+                                format: uuid
+                              departure_ts:
+                                type: string
+                                format: date-time
+                              seats_available:
+                                type: integer
+                              price_per_person:
+                                type: number
+                              max_two_back:
+                                type: boolean
+                              comment:
+                                type: string
+                                nullable: true
+                              status:
+                                $ref: '#/components/schemas/TripStatus'
+                              trip_start_ts:
+                                type: string
+                                format: date-time
+                                nullable: true
+                              trip_end_ts:
+                                type: string
+                                format: date-time
+                                nullable: true
+                              createdAt:
+                                type: string
+                                format: date-time
+                              driver:
+                                type: object
+                                properties:
+                                  id:
+                                    type: string
+                                  smoking_allowed:
+                                    type: boolean
+                                  pets_allowed:
+                                    type: boolean
+                                  door_pickup:
+                                    type: boolean
+                                  food_stop:
+                                    type: boolean
+                                  garage:
+                                    $ref: '#/components/schemas/GarageStatus'
+                              car:
+                                type: object
+                                properties:
+                                  id:
+                                    type: string
+                                  make:
+                                    type: string
+                                  model:
+                                    type: string
+                                  gov_number:
+                                    type: string
+                                  color:
+                                    type: string
+                              duration:
+                                type: integer
+                              distance:
+                                type: integer
+                              bookings:
+                                type: array
+                                description: Public booking information (passenger details included)
+                                items:
+                                  type: object
+                                  properties:
+                                    id:
+                                      type: string
+                                    seatsBooked:
+                                      type: integer
+                                    status:
+                                      $ref: '#/components/schemas/BookingStatus'
+                                    passenger:
+                                      type: object
+                                      properties:
+                                        id:
+                                          type: string
+                                        firstName:
+                                          type: string
+                                        lastName:
+                                          type: string
+                                        gender:
+                                          $ref: '#/components/schemas/Gender'
+                                        avatar:
+                                          type: string
+                                        rating:
+                                          type: number
+                              from_location:
+                                type: object
+                                properties:
+                                  address:
+                                    type: string
+                                  city:
+                                    type: string
+                                  coordinates:
+                                    type: object
+                                    properties:
+                                      latitude:
+                                        type: number
+                                      longitude:
+                                        type: number
+                              to_location:
+                                type: object
+                                properties:
+                                  address:
+                                    type: string
+                                  city:
+                                    type: string
+                                  coordinates:
+                                    type: object
+                                    properties:
+                                      latitude:
+                                        type: number
+                                      longitude:
+                                        type: number
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    patch:
+      tags: [Trip]
+      summary: Update trip
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/TripId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                departure_ts:
+                  type: string
+                  format: date-time
+                  description: New departure date and time
+                seats_available:
+                  type: integer
+                  minimum: 1
+                  description: Updated number of available seats
+                price_per_person:
+                  type: number
+                  minimum: 0
+                  description: Updated price per person
+                max_two_back:
+                  type: boolean
+                  description: Maximum 2 passengers in back seat
+                conditioner:
+                  type: boolean
+                  description: Air conditioning available
+                smoking_allowed:
+                  type: boolean
+                  description: Smoking allowed during trip
+                door_pickup:
+                  type: boolean
+                  description: Door-to-door pickup service
+                food_stop:
+                  type: boolean
+                  description: Food stops allowed
+                garage:
+                  type: string
+                  enum: [FULL, EMPTY, HALF_EMPTY]
+                  description: Garage/trunk space availability
+                booking_type:
+                  type: string
+                  enum: [INSTANT, REQUEST]
+                  description: 'Booking confirmation type: INSTANT - automatic booking, REQUEST - requires driver approval'
+                comment:
+                  type: string
+                  maxLength: 255
+                  description: Optional trip comment
+      responses:
+        '200':
+          description: Trip updated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    $ref: '#/components/schemas/Trip'
+                  message:
+                    type: string
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /trip/{tripId}/bookings:
+    get:
+      tags: [Trip]
+      summary: Get all bookings for a trip (driver only)
+      description: Retrieves all bookings for a specific trip. Driver can filter by status (e.g., PENDING, CONFIRMED, CANCELLED)
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/TripId'
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [PENDING, CONFIRMED, CANCELLED, FAILED]
+          description: Filter bookings by status
+      responses:
+        '200':
+          description: Trip bookings retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+                    properties:
+                      bookings:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            id:
+                              type: string
+                              format: uuid
+                            passengerId:
+                              type: string
+                              format: uuid
+                            passenger:
+                              type: object
+                              nullable: true
+                              properties:
+                                id:
+                                  type: string
+                                  format: uuid
+                                firstName:
+                                  type: string
+                                lastName:
+                                  type: string
+                                avatar:
+                                  type: string
+                                phoneNumber:
+                                  type: string
+                            seatsBooked:
+                              type: integer
+                            totalPrice:
+                              type: number
+                            status:
+                              type: string
+                              enum: [PENDING, CONFIRMED, CANCELLED, FAILED]
+                            pickup_latitude:
+                              type: number
+                            pickup_longitude:
+                              type: number
+                            dropoff_latitude:
+                              type: number
+                            dropoff_longitude:
+                              type: number
+                            from_address:
+                              type: string
+                            to_address:
+                              type: string
+                            created_at:
+                              type: string
+                              format: date-time
+                            updated_at:
+                              type: string
+                              format: date-time
+                  message:
+                    type: string
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /trip/{tripId}/start:
+    post:
+      tags: [Trip]
+      summary: Start trip
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/TripId'
+      responses:
+        '200':
+          description: Trip started successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+                    properties:
+                      trip:
+                        $ref: '#/components/schemas/Trip'
+                  message:
+                    type: string
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /trip/{tripId}/complete:
+    post:
+      tags: [Trip]
+      summary: Complete trip
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/TripId'
+      responses:
+        '200':
+          description: Trip completed successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+                    properties:
+                      trip:
+                        $ref: '#/components/schemas/Trip'
+                  message:
+                    type: string
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /trip/{tripId}/cancel:
+    patch:
+      tags: [Trip]
+      summary: Cancel trip
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/TripId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [cancellationReason]
+              properties:
+                cancellationReason:
+                  type: string
+      responses:
+        '200':
+          description: Trip cancelled successfully with refunds processed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+                    properties:
+                      message:
+                        type: string
+                        example: 'Trip and all associated bookings have been successfully cancelled. Funds returned to passengers.'
+                      canceledTrip:
+                        $ref: '#/components/schemas/Trip'
+                      refunds:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            bookingId:
+                              type: string
+                              format: uuid
+                            passengerId:
+                              type: string
+                              format: uuid
+                            refundAmount:
+                              type: number
+                            refundType:
+                              type: string
+                  message:
+                    type: string
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /trip/my-activity:
+    get:
+      tags: [Trip]
+      summary: Get my trips activity
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Limit'
+        - name: role
+          in: query
+          required: true
+          schema:
+            type: string
+            enum: ['driver', 'passenger']
+          description: Filter by role (driver or passenger)
+      responses:
+        '200':
+          description: Activity retrieved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+                    properties:
+                      trips:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Trip'
+                      total:
+                        type: integer
+                      currentPage:
+                        type: integer
+                      totalPages:
+                        type: integer
+                  message:
+                    type: string
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  # ===================== BOOKING ENDPOINTS =====================
+  /booking:
+    post:
+      tags: [Booking]
+      summary: Create booking
+      security:
+        - BearerAuth: []
+      requestBody:
+        $ref: '#/components/requestBodies/CreateBooking'
+      responses:
+        '201':
+          description: Booking created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    $ref: '#/components/schemas/Booking'
+                  message:
+                    type: string
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+    get:
+      tags: [Booking]
+      summary: Get booking details for driver trip
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: bookingId
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Booking ID
+      responses:
+        '200':
+          description: Booking details retrieved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    $ref: '#/components/schemas/Booking'
+                  message:
+                    type: string
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+  # ===================== PARCEL ENDPOINTS (MVP) =====================
+  /parcel:
+    post:
+      tags: [Parcel]
+      summary: Create parcel delivery request
+      description: |
+        Point A → point B parcel delivery on a trip where the driver enabled
+        `parcels_allowed` (Yandex-Delivery-style: nothing is known about the
+        parcel itself). Behaves like a booking: on INSTANT trips the parcel is
+        CONFIRMED immediately, on REQUEST trips it is created as PENDING and
+        waits for the driver. Parcels do NOT occupy seats.
+        Price = trip.parcel_price, or trip.price_per_person when parcel_price is null.
+      security:
+        - BearerAuth: []
+      requestBody:
+        $ref: '#/components/requestBodies/CreateParcel'
+      responses:
+        '201':
+          description: Parcel created (CONFIRMED on INSTANT trips, PENDING on REQUEST trips)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+                    properties:
+                      parcel:
+                        $ref: '#/components/schemas/Parcel'
+                  message:
+                    type: string
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /parcel/my:
+    get:
+      tags: [Parcel]
+      summary: Get my parcels (sender)
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Parcels retrieved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Parcel'
+                  message:
+                    type: string
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /parcel/trip/{tripId}:
+    get:
+      tags: [Parcel]
+      summary: Get trip parcels (driver only)
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: tripId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: status
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/ParcelStatus'
+          description: Filter by parcel status
+      responses:
+        '200':
+          description: Trip parcels retrieved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Parcel'
+                  message:
+                    type: string
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /parcel/{parcelId}:
+    get:
+      tags: [Parcel]
+      summary: Get parcel details (sender or trip driver)
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: parcelId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Parcel retrieved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    $ref: '#/components/schemas/Parcel'
+                  message:
+                    type: string
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /parcel/{parcelId}/cancel:
+    patch:
+      tags: [Parcel]
+      summary: Cancel parcel (sender)
+      description: Allowed while the parcel is PENDING or CONFIRMED (not yet picked up).
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: parcelId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [cancellationReason]
+              properties:
+                cancellationReason:
+                  type: string
+                  maxLength: 100
+      responses:
+        '200':
+          description: Parcel cancelled
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /parcel/{parcelId}/confirm:
+    post:
+      tags: [Parcel]
+      summary: Confirm parcel (driver, PENDING → CONFIRMED)
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: parcelId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Parcel confirmed
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /parcel/{parcelId}/reject:
+    post:
+      tags: [Parcel]
+      summary: Reject parcel (driver, PENDING → REJECTED)
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: parcelId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reason:
+                  type: string
+                  maxLength: 100
+      responses:
+        '200':
+          description: Parcel rejected
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /parcel/{parcelId}/pickup:
+    post:
+      tags: [Parcel]
+      summary: Mark parcel as picked up (driver, CONFIRMED → PICKED_UP)
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: parcelId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Parcel picked up
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /parcel/{parcelId}/deliver:
+    post:
+      tags: [Parcel]
+      summary: Mark parcel as delivered (driver, PICKED_UP → DELIVERED)
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: parcelId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Parcel delivered
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  # ===================== PAYMENT ENDPOINTS =====================
+  /payment/paynet:
+    post:
+      tags: [Payment]
+      summary: Paynet payment callback
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '200':
+          $ref: '#/components/responses/Success'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  # ===================== WALLET ENDPOINTS =====================
+  /wallet/me:
+    get:
+      tags: [Wallet]
+      summary: Get wallet
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Wallet retrieved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    $ref: '#/components/schemas/Wallet'
+                  message:
+                    type: string
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /wallet/me/transactions:
+    get:
+      tags: [Wallet]
+      summary: Get wallet transactions
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: Transactions retrieved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+                    properties:
+                      transactions:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Transaction'
+                      total:
+                        type: integer
+                      currentPage:
+                        type: integer
+                      totalPages:
+                        type: integer
+                  message:
+                    type: string
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /wallet/deposit:
+    post:
+      tags: [Wallet, Payment]
+      summary: Deposit to wallet
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [amount, userCardId]
+              properties:
+                amount:
+                  type: number
+                  format: double
+                  example: 100000
+                userCardId:
+                  type: string
+                  format: uuid
+      responses:
+        '200':
+          description: Deposit initiated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+                    properties:
+                      transactionId:
+                        type: string
+                        format: uuid
+                  message:
+                    type: string
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  # ===================== CHAT ENDPOINTS =====================
+  /chat:
+    get:
+      tags: [Chat]
+      summary: Get my chats
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Chats retrieved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+                    properties:
+                      chats:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Chat'
+                  message:
+                    type: string
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+    post:
+      tags: [Chat]
+      summary: Start chat
+      security:
+        - BearerAuth: []
+      requestBody:
+        $ref: '#/components/requestBodies/StartChat'
+      responses:
+        '201':
+          description: Chat created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+                    properties:
+                      chat:
+                        $ref: '#/components/schemas/Chat'
+                  message:
+                    type: string
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /chat/{chatId}/messages:
+    get:
+      tags: [Chat]
+      summary: Get chat messages
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/ChatId'
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: Messages retrieved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+                    properties:
+                      messages:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Message'
+                      chat:
+                        $ref: '#/components/schemas/Chat'
+                  message:
+                    type: string
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+    post:
+      tags: [Chat]
+      summary: Send message
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/ChatId'
+      requestBody:
+        $ref: '#/components/requestBodies/SendMessage'
+      responses:
+        '201':
+          description: Message sent
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+                    properties:
+                      message:
+                        $ref: '#/components/schemas/Message'
+                  message:
+                    type: string
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  # ===================== RATING ENDPOINTS =====================
+  /ratings:
+    post:
+      tags: [Rating]
+      summary: Create rating
+      security:
+        - BearerAuth: []
+      requestBody:
+        $ref: '#/components/requestBodies/CreateRating'
+      responses:
+        '201':
+          description: Rating created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    $ref: '#/components/schemas/Rating'
+                  message:
+                    type: string
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /ratings/{userId}:
+    get:
+      tags: [Rating]
+      summary: Get user ratings
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: Ratings retrieved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Rating'
+                  message:
+                    type: string
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # ===================== NOTIFICATION ENDPOINTS =====================
+  /notification:
+    get:
+      tags: [Notification]
+      summary: Get notifications
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: Notifications retrieved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+                    properties:
+                      notifications:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Notification'
+                  message:
+                    type: string
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+    post:
+      tags: [Notification]
+      summary: Send notification to all users
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [content, type]
+              properties:
+                content:
+                  type: string
+                  description: Notification message text
+                type:
+                  type: string
+                  enum: [trips, newsAndAgreement, promotionAndDiscounts, messages, general]
+      responses:
+        '200':
+          description: Notifications sent to all users
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    nullable: true
+                  message:
+                    type: string
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /notification/{notificationId}/read:
+    patch:
+      tags: [Notification]
+      summary: Mark notification as read
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: notificationId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Notification marked as read
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+                    properties:
+                      notification:
+                        $ref: '#/components/schemas/Notification'
+                  message:
+                    type: string
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # ===================== REFERRAL ENDPOINTS =====================
+  /referral/get-ref:
+    get:
+      tags: [Referral]
+      summary: Get referral code
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Referral code retrieved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+                    properties:
+                      referralCode:
+                        type: string
+                      referredCount:
+                        type: integer
+                  message:
+                    type: string
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /referral/ref:
+    get:
+      tags: [Referral]
+      summary: Get referral info by code
+      parameters:
+        - name: code
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Referral info retrieved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+                    properties:
+                      code:
+                        type: string
+                      discount:
+                        type: number
+                  message:
+                    type: string
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /referral/match-install:
+    post:
+      tags: [Referral]
+      summary: Match install to referral code
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [referralCode]
+              properties:
+                referralCode:
+                  type: string
+      responses:
+        '200':
+          $ref: '#/components/responses/Success'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+  # ===================== TRIP ADDITIONAL ENDPOINTS =====================
+  /trip/req-price:
+    get:
+      tags: [Trip]
+      summary: Get price recommendation for a specific route
+      description: |
+        Get price recommendation based on historical data for completed trips
+        between specified cities. Pass full addresses (e.g. from Yandex Maps) —
+        the city is extracted automatically from the address string.
+        Returns min/max/average prices with confidence level.
+        No authentication required.
+      parameters:
+        - name: from_address
+          in: query
+          required: true
+          schema:
+            type: string
+            example: "Россия, Ташкент, улица Навои, 5"
+          description: Full departure address. City is extracted automatically.
+        - name: to_address
+          in: query
+          required: true
+          schema:
+            type: string
+            example: "Узбекистан, Самарканд, проспект Амира Темура, 12"
+          description: Full destination address. City is extracted automatically.
+      responses:
+        '200':
+          description: Price recommendation retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: success
+                  data:
+                    type: object
+                    properties:
+                      recommended_min:
+                        type: number
+                        nullable: true
+                        example: 50000
+                        description: Minimum recommended price (15th percentile)
+                      recommended_max:
+                        type: number
+                        nullable: true
+                        example: 85000
+                        description: Maximum recommended price (85th percentile)
+                      average_price:
+                        type: number
+                        nullable: true
+                        example: 67000
+                        description: Average price from analyzed trips
+                      trips_analyzed:
+                        type: integer
+                        example: 42
+                        description: Number of completed trips analyzed for this route
+                      confidence:
+                        type: string
+                        enum: [high, medium, low, insufficient_data]
+                        example: high
+                        description: |
+                          Confidence level based on sample size:
+                          - high: 30+ trips
+                          - medium: 10-29 trips
+                          - low: 5-9 trips
+                          - insufficient_data: less than 5 trips (prices will be null)
+                      from_city:
+                        type: string
+                        nullable: true
+                        example: Tashkent
+                        description: City extracted from from_address
+                      to_city:
+                        type: string
+                        nullable: true
+                        example: Samarkand
+                        description: City extracted from to_address
+                      error:
+                        type: string
+                        nullable: true
+                        example: "Could not extract city from from_address"
+                        description: Present only when city extraction fails
+                  message:
+                    type: string
+                    example: Success
+        '400':
+          description: Validation error - missing or invalid parameters
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: error
+                  message:
+                    type: string
+                    example: Validation failed. Please provide from_city and to_city.
+                  errors:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        field:
+                          type: string
+                        message:
+                          type: string
+
+  /trip/{tripId}/report:
+    post:
+      tags: [Trip]
+      summary: Report trip
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/TripId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [reason, description]
+              properties:
+                reason:
+                  type: string
+                description:
+                  type: string
+      responses:
+        '201':
+          description: Report created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+                  message:
+                    type: string
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  # ===================== BOOKING ADDITIONAL ENDPOINTS =====================
+
+  /booking/{bookingId}/confirm:
+    post:
+      tags: [Booking]
+      summary: Confirm REQUEST booking (driver only)
+      description: |
+        Driver confirms a PENDING booking request. This action:
+        - Changes booking status from PENDING to CONFIRMED
+        - Applies promocode discount if passenger has an active one
+        - Decrements available seats on the trip
+        - Sends confirmation notification to passenger with final price
+        
+        Only works for bookings with status PENDING from REQUEST type trips.
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/BookingId'
+      responses:
+        '200':
+          description: Booking confirmed successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: Booking confirmed successfully
+                  data:
+                    type: object
+                    properties:
+                      booking:
+                        $ref: '#/components/schemas/Booking'
+                      promoCodeApplied:
+                        type: boolean
+                        description: Whether a promocode discount was applied
+                      finalPrice:
+                        type: number
+                        description: Final price after promocode discount (if applied)
+                        example: 49500
+        '400':
+          description: Bad request - booking not in PENDING status or validation failed
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Forbidden - user is not the driver of this trip
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          description: Booking or trip not found
+          $ref: '#/components/responses/NotFound'
+
+  /booking/{bookingId}/reject:
+    post:
+      tags: [Booking]
+      summary: Reject REQUEST booking (driver only)
+      description: |
+        Driver rejects a PENDING booking request. This action:
+        - Changes booking status from PENDING to CANCELLED
+        - Preserves passenger's promocode for future use
+        - Does NOT affect trip seats (they were never decremented)
+        - Sends rejection notification to passenger with optional reason
+        
+        Only works for bookings with status PENDING from REQUEST type trips.
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/BookingId'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reason:
+                  type: string
+                  maxLength: 200
+                  description: Optional reason for rejection (shown to passenger)
+                  example: Sorry, I need to cancel this trip
+      responses:
+        '200':
+          description: Booking rejected successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: Booking rejected successfully
+                  data:
+                    type: object
+                    properties:
+                      booking:
+                        $ref: '#/components/schemas/Booking'
+        '400':
+          description: Bad request - booking not in PENDING status
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Forbidden - user is not the driver of this trip
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          description: Booking or trip not found
+          $ref: '#/components/responses/NotFound'
+
+  /booking/{bookingId}/cancel:
+    patch:
+      tags: [Booking]
+      summary: Cancel booking with refund
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/BookingId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [cancellationReason]
+              properties:
+                cancellationReason:
+                  type: string
+                  minLength: 1
+      responses:
+        '200':
+          description: Booking cancelled and funds returned
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  status_code:
+                    type: integer
+                    example: 200
+                  message:
+                    type: string
+                    example: Booking cancelled successfully, funds returned.
+                  data:
+                    type: object
+                    properties:
+                      bookingId:
+                        type: string
+                        format: uuid
+                      refundDetails:
+                        type: object
+                        properties:
+                          amount:
+                            type: number
+                            example: 110000
+                          status:
+                            type: string
+                            example: 'COMPLETED'
+                          type:
+                            type: string
+                            enum: [WALLET, CARD]
+
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  # ===================== USER ADDITIONAL ENDPOINTS =====================
+  /user/search-history:
+    get:
+      tags: [User]
+      summary: Get search history
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: Search history retrieved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                          format: uuid
+                        query:
+                          type: string
+                        results:
+                          type: integer
+                        createdAt:
+                          type: string
+                          format: date-time
+                  message:
+                    type: string
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /user/me/promocodes:
+    get:
+      tags: [User]
+      summary: Get my promocodes
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Promocodes retrieved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                          format: uuid
+                        code:
+                          type: string
+                        discount:
+                          type: number
+                        expiresAt:
+                          type: string
+                          format: date-time
+                  message:
+                    type: string
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /user/me/promocodes/activate:
+    post:
+      tags: [User]
+      summary: Activate promocode
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [code]
+              properties:
+                code:
+                  type: string
+      responses:
+        '200':
+          description: Promocode activated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+                    properties:
+                      code:
+                        type: string
+                      discount:
+                        type: number
+                      expiresAt:
+                        type: string
+                        format: date-time
+                  message:
+                    type: string
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /user/{userId}/report:
+    post:
+      tags: [User]
+      summary: Report user
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [reason, description]
+              properties:
+                reason:
+                  type: string
+                description:
+                  type: string
+      responses:
+        '201':
+          description: Report created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+                  message:
+                    type: string
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  # ===================== CAR ADDITIONAL ENDPOINTS =====================
+  /car/{carId}/resubmit:
+    patch:
+      tags: [Car]
+      summary: Resubmit car for verification
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: carId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [passport_number, carPassportLink]
+              properties:
+                passport_number:
+                  type: string
+                carPassportLink:
+                  type: string
+      responses:
+        '200':
+          description: Car resubmitted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    $ref: '#/components/schemas/Car'
+                  message:
+                    type: string
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # ===================== ADMIN ADDITIONAL ENDPOINTS =====================
+  /admin/users/banned:
+    get:
+      tags: [Admin]
+      summary: Get banned users list
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: Banned users retrieved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        user:
+                          $ref: '#/components/schemas/User'
+                        bannedAt:
+                          type: string
+                          format: date-time
+                        reason:
+                          type: string
+                        expiresAt:
+                          type: string
+                          format: date-time
+                          nullable: true
+                  message:
+                    type: string
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /admin/trips/details/{tripId}:
+    get:
+      tags: [Admin]
+      summary: Get trip details for admin
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/TripId'
+      responses:
+        '200':
+          description: Trip found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    $ref: '#/components/schemas/Trip'
+                  message:
+                    type: string
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+
+
+  # ===================== ADMIN PANEL ENDPOINTS =====================
+  /admin/login:
+    post:
+      tags: [Admin]
+      summary: Admin login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [phoneNumber, password]
+              properties:
+                phoneNumber:
+                  type: string
+                  example: '+998901234567'
+                password:
+                  type: string
+      responses:
+        '200':
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  status_code:
+                    type: integer
+                  message:
+                    type: string
+                  data:
+                    type: object
+                    properties:
+                      accessToken:
+                        type: string
+                      admin:
+                        type: object
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /admin/logout:
+    post:
+      tags: [Admin]
+      summary: Admin logout
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          $ref: '#/components/responses/Success'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /admin/me:
+    get:
+      tags: [Admin]
+      summary: Get current admin profile
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Admin profile retrieved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  status_code:
+                    type: integer
+                  message:
+                    type: string
+                  data:
+                    type: object
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /admin/stats:
+    get:
+      tags: [Admin]
+      summary: Get admin statistics
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Statistics retrieved
+          content:
+            application/json:
+              schema:
+                type: object
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /admin/applications:
+    get:
+      tags: [Admin]
+      summary: Get all driver applications
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: Applications retrieved
+          content:
+            application/json:
+              schema:
+                type: object
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /admin/applications/{applicationId}/status:
+    patch:
+      tags: [Admin]
+      summary: Update driver application status
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: applicationId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [status]
+              properties:
+                status:
+                  type: string
+                  enum: [VERIFIED, REJECTED]
+                rejectionReason:
+                  type: string
+                  nullable: true
+      responses:
+        '200':
+          $ref: '#/components/responses/Success'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /admin/reports:
+    get:
+      tags: [Admin]
+      summary: Get all reports
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: Reports retrieved
+          content:
+            application/json:
+              schema:
+                type: object
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /admin/reports/{reportId}:
+    patch:
+      tags: [Admin]
+      summary: Change report status
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: reportId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '200':
+          $ref: '#/components/responses/Success'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /admin/reports/{reportId}/ban:
+    post:
+      tags: [Admin]
+      summary: Ban user from report
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: reportId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          $ref: '#/components/responses/Success'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /admin/users:
+    get:
+      tags: [Admin]
+      summary: Get all users
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: Users retrieved
+          content:
+            application/json:
+              schema:
+                type: object
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /admin/users/search:
+    get:
+      tags: [Admin]
+      summary: Search users
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: query
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Users found
+          content:
+            application/json:
+              schema:
+                type: object
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /admin/users/{userId}:
+    get:
+      tags: [Admin]
+      summary: Get user details (admin)
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+      responses:
+        '200':
+          description: User details retrieved
+          content:
+            application/json:
+              schema:
+                type: object
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /admin/users/{userId}/ban:
+    post:
+      tags: [Admin]
+      summary: Ban user
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [reason]
+              properties:
+                reason:
+                  type: string
+      responses:
+        '200':
+          $ref: '#/components/responses/Success'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /admin/users/{userId}/unban:
+    patch:
+      tags: [Admin]
+      summary: Unban user
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/UserId'
+      responses:
+        '200':
+          $ref: '#/components/responses/Success'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /admin/trips:
+    get:
+      tags: [Admin]
+      summary: Get all trips (admin)
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: Trips retrieved
+          content:
+            application/json:
+              schema:
+                type: object
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /admin/trips/{tripId}:
+    patch:
+      tags: [Admin]
+      summary: Edit trip (admin)
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/TripId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '200':
+          $ref: '#/components/responses/Success'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+    delete:
+      tags: [Admin]
+      summary: Delete trip (admin)
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/TripId'
+      responses:
+        '200':
+          $ref: '#/components/responses/Success'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /admin/notifications/global:
+    get:
+      tags: [Admin]
+      summary: Get global notifications
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: Global notifications retrieved
+          content:
+            application/json:
+              schema:
+                type: object
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /admin/moderation/words:
+    get:
+      tags: [Admin]
+      summary: Get restricted words
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Restricted words retrieved
+          content:
+            application/json:
+              schema:
+                type: object
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+    post:
+      tags: [Admin]
+      summary: Add restricted word
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [word]
+              properties:
+                word:
+                  type: string
+      responses:
+        '201':
+          $ref: '#/components/responses/CreatedSuccess'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /admin/moderation/words/{wordId}:
+    delete:
+      tags: [Admin]
+      summary: Delete restricted word
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: wordId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          $ref: '#/components/responses/Success'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /admin/promocodes:
+    get:
+      tags: [Admin]
+      summary: Get global promocodes
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: Promocodes retrieved
+          content:
+            application/json:
+              schema:
+                type: object
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+    post:
+      tags: [Admin]
+      summary: Grant promocode to user
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '201':
+          $ref: '#/components/responses/CreatedSuccess'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /admin/user-promocodes:
+    get:
+      tags: [Admin]
+      summary: Get user promocodes
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: User promocodes retrieved
+          content:
+            application/json:
+              schema:
+                type: object
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /admin/promocodes/{promoCodeId}:
+    delete:
+      tags: [Admin]
+      summary: Delete promocode
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: promoCodeId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          $ref: '#/components/responses/Success'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  # ===================== SUPER ADMIN ENDPOINTS =====================
+  /super-admin/admins:
+    post:
+      tags: [Admin]
+      summary: Create new admin
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [phoneNumber, password, firstName]
+              properties:
+                phoneNumber:
+                  type: string
+                  pattern: '^\+998[0-9]{9}$'
+                password:
+                  type: string
+                  minLength: 6
+                firstName:
+                  type: string
+                permissions:
+                  type: array
+                  items:
+                    type: string
+      responses:
+        '201':
+          description: Admin created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                        format: uuid
+                      phoneNumber:
+                        type: string
+                      firstName:
+                        type: string
+                  message:
+                    type: string
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+    get:
+      tags: [Admin]
+      summary: Get all admins
+      security:
+        - BearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: Admins retrieved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                          format: uuid
+                        phoneNumber:
+                          type: string
+                        firstName:
+                          type: string
+                        createdAt:
+                          type: string
+                          format: date-time
+                  message:
+                    type: string
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /super-admin/admins/{adminId}:
+    delete:
+      tags: [Admin]
+      summary: Delete admin
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: adminId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          $ref: '#/components/responses/Success'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /super-admin/admins/{adminId}/permissions:
+    put:
+      tags: [Admin]
+      summary: Update admin permissions
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: adminId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [permissions]
+              properties:
+                permissions:
+                  type: array
+                  items:
+                    type: string
+      responses:
+        '200':
+          $ref: '#/components/responses/Success'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /super-admin/admins/{adminId}/logs:
+    get:
+      tags: [Admin]
+      summary: Get admin activity logs
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: adminId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: Logs retrieved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                          format: uuid
+                        adminId:
+                          type: string
+                          format: uuid
+                        action:
+                          type: string
+                        details:
+                          type: object
+                        createdAt:
+                          type: string
+                          format: date-time
+                  message:
+                    type: string
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # ─────────────────────────────────────────────
+  # INTERNAL — только для Python-парсера
+  # ─────────────────────────────────────────────
+
+  /internal/trips/import:
+    post:
+      tags: [Internal]
+      summary: Импортировать поездку от Python-парсера
+      description: |
+        Принимает данные о поездке, спарсенные из Telegram.
+        Backend автоматически:
+        - создаёт аккаунт водителя (если не существует) с ролью Driver
+        - создаёт машину (если не существует по govNumber)
+        - создаёт Trip в статусе CREATED
+        - геокодирует города через Nominatim (fallback — встроенная карта)
+
+        Когда пассажир бронирует место на такой поездке, backend публикует событие
+        в Redis-очередь `external-driver-notifications` (BullMQ).
+        Python worker читает эту очередь и отправляет уведомление водителю в Telegram.
+
+        **Защита**: заголовок `X-Internal-Key` должен совпадать с `INTERNAL_API_KEY` из `.env`.
+      security:
+        - InternalKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - from_city
+                - to_city
+                - phone
+                - first_name
+                - price
+              properties:
+                from_city:
+                  type: string
+                  example: Tashkent
+                  description: Название города отправления (на любом языке)
+                to_city:
+                  type: string
+                  example: Samarkand
+                  description: Название города назначения (на любом языке)
+                phone:
+                  type: string
+                  pattern: '^\+998[0-9]{9}$'
+                  example: "+998901234567"
+                first_name:
+                  type: string
+                  example: Ali
+                last_name:
+                  type: string
+                  example: Aliev
+                car_model:
+                  type: string
+                  example: Nexia 3
+                car_make:
+                  type: string
+                  example: Chevrolet
+                car_number:
+                  type: string
+                  example: 01A111AA
+                price:
+                  type: number
+                  example: 100000
+                  description: Цена за место в сумах
+                seats_available:
+                  type: integer
+                  default: 3
+                  example: 3
+                baggage:
+                  type: string
+                  enum: [FULL, HALF_EMPTY, EMPTY]
+                  example: EMPTY
+                pick_up_from_home:
+                  type: boolean
+                  default: false
+                food_stop:
+                  type: boolean
+                  default: false
+                smoking:
+                  type: boolean
+                  default: false
+                air_conditioner:
+                  type: boolean
+                  default: false
+                departure_ts:
+                  type: string
+                  format: date-time
+                  description: Время отправления UTC (если не указано — завтра 08:00 UZT)
+                  example: "2026-03-28T03:00:00.000Z"
+            example:
+              from_city: Tashkent
+              to_city: Samarkand
+              phone: "+998901234567"
+              first_name: Ali
+              last_name: Aliev
+              car_model: Nexia 3
+              car_make: Chevrolet
+              car_number: 01A111AA
+              price: 100000
+              seats_available: 3
+              baggage: EMPTY
+              pick_up_from_home: true
+              food_stop: false
+              smoking: false
+              air_conditioner: true
+      responses:
+        '201':
+          description: Поездка успешно создана
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      trip:
+                        type: object
+                        properties:
+                          id:
+                            type: string
+                            format: uuid
+                          from_city:
+                            type: string
+                          to_city:
+                            type: string
+                          price_per_person:
+                            type: number
+                          seats_available:
+                            type: integer
+                          departure_ts:
+                            type: string
+                            format: date-time
+                          status:
+                            type: string
+                            enum: [CREATED]
+                      driver:
+                        type: object
+                        properties:
+                          id:
+                            type: string
+                            format: uuid
+                          phone:
+                            type: string
+                          isNew:
+                            type: boolean
+                            description: true если аккаунт создан впервые
+                      car:
+                        type: object
+                        properties:
+                          id:
+                            type: string
+                            format: uuid
+                          make:
+                            type: string
+                          model:
+                            type: string
+                          govNumber:
+                            type: string
+                  message:
+                    type: string
+                    example: Trip imported successfully.
+        '400':
+          description: Ошибка валидации
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: false
+                  message:
+                    type: string
+                    example: Validation failed.
+                  errors:
+                    type: object
+        '401':
+          description: Неверный или отсутствующий X-Internal-Key
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Unauthorized
+        '500':
+          description: Внутренняя ошибка (например, неизвестный город)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: false
+                  message:
+                    type: string
+                    example: 'Unknown city: "Foo". Cannot determine coordinates.'
+
+  /super-admin/stats:
+    get:
+      tags: [Admin]
+      summary: Get super admin statistics
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Statistics retrieved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+                    properties:
+                      totalUsers:
+                        type: integer
+                      totalTrips:
+                        type: integer
+                      totalRevenue:
+                        type: number
+                      activeAdmins:
+                        type: integer
+                      bannedUsersCount:
+                        type: integer
+                  message:
+                    type: string
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /super-admin/me:
+    get:
+      tags: [Admin]
+      summary: Get current super admin profile
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Super admin profile retrieved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: string
+                        format: uuid
+                      phoneNumber:
+                        type: string
+                      firstName:
+                        type: string
+                      role:
+                        type: string
+                        enum: [SUPER_ADMIN]
+                  message:
+                    type: string
+        '401':
+          $ref: '#/components/responses/Unauthorized'

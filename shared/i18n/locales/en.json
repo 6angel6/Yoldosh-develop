@@ -1,0 +1,162 @@
+{
+  "notification": {
+    "booking": {
+      "created": {
+        "passenger": "Your trip is booked! {{seatsBooked}} seat(s) for {{totalPrice}} sum.",
+        "driver": "New booking! Passenger booked {{seatsBooked}} seat(s)."
+      },
+      "confirmed": {
+        "passenger": "Your booking is confirmed by driver! {{seatsBooked}} seat(s) for {{totalPrice}} sum."
+      },
+      "cancelled": {
+        "passenger": "Your booking has been cancelled.{{cancellationReason}}",
+        "driver": "Booking cancelled. Seats have been released."
+      },
+      "updated": {
+        "passenger": "Booking updated: {{seatsDifference}}",
+        "driver": "Booking updated: passenger {{seatChangeText}} seats."
+      },
+      "day_reminder": "Your trip {{fromCity}} → {{toCity}} is today at {{departureTime}}. Don't be late!"
+    },
+    "parcel": {
+      "created": {
+        "sender": "Parcel delivery request sent to the driver: {{fromCity}} → {{toCity}}. Price: {{price}} UZS.",
+        "driver": "New parcel delivery request: {{fromCity}} → {{toCity}}."
+      },
+      "confirmed": {
+        "sender": "The driver agreed to deliver your parcel! Price: {{price}} UZS."
+      },
+      "rejected": {
+        "sender": "The driver declined your parcel delivery request.{{reason}}"
+      },
+      "cancelled": {
+        "sender": "Parcel delivery cancelled.{{cancellationReason}}",
+        "driver": "The sender cancelled the parcel delivery."
+      },
+      "picked_up": {
+        "sender": "The driver picked up your parcel and is on the way to the recipient."
+      },
+      "delivered": {
+        "sender": "Your parcel has been delivered to the recipient!"
+      }
+    },
+    "trip": {
+      "created": {
+        "driver": "Trip created!"
+      },
+      "updated": {
+        "driver": "Trip updated!",
+        "passenger": "Trip details updated: {{fromAddress}} → {{toAddress}}."
+      },
+      "started": {
+        "passenger": "Your trip has started: {{fromCity}} → {{toCity}}.",
+        "driver": "Trip started: {{fromCity}} → {{toCity}}."
+      },
+      "completed": {
+        "passenger": "Trip completed: {{fromCity}} → {{toCity}}. Thank you for riding with us!",
+        "driver": "Trip completed: {{fromCity}} → {{toCity}}."
+      },
+      "cancelled": {
+        "passenger": "Trip cancelled by driver: {{fromCity}} → {{toCity}}.",
+        "driver": "Trip cancelled: {{fromCity}} → {{toCity}}."
+      },
+      "driver_cancelled": {
+        "booking_refunded": "Your trip booking has been cancelled by the driver. Funds have been refunded.",
+        "pending_booking": "Trip cancelled by driver. Your pending booking has been automatically cancelled."
+      }
+    },
+    "payment": {
+      "wallet_deposit": "Wallet topped up: {{amount}} sum.",
+      "wallet_deposit_failed": "Failed to top up wallet: {{amount}} sum.",
+      "success": "Payment successful: {{amount}} sum.",
+      "failed": "Payment failed"
+    },
+    "wallet": {
+      "negative_balance": {
+        "driver": "Your wallet balance is negative: {{balance}} sum. Please top up as soon as possible."
+      }
+    },
+    "rating": {
+      "given": "You rated {{driverName}} with {{rating}}.",
+      "received": "You were rated {{rating}} by {{passengerName}}"
+    },
+    "search": {
+      "new_trips": "Found {{tripCount}} new trips {{fromCity}} → {{toCity}}! Check them out."
+    },
+    "driver": {
+      "create_trip_reminder_1d": "Create your first trip and start earning!",
+      "create_trip_reminder_3d": "You've been a driver for 3 days! Create a trip and find passengers.",
+      "create_trip_reminder_6d": "Don't miss the opportunity! Create a trip today."
+    },
+    "user": {
+      "inactive_5d": "We miss you! Check out the new trips.",
+      "inactive_10d": "Long time no see! Time to hit the road?",
+      "inactive_20d": "Come back! We have many new trips."
+    },
+    "new_message": "{{senderName}}: {{content}}",
+    "test": {
+      "server_heartbeat": "✅ Notification system is active. Time: {{time}}",
+      "action": "{{action}}. Time: {{time}}"
+    }
+  },
+  "title": {
+    "booking": {
+      "confirmed": "Booking confirmed",
+      "cancelled": "Booking cancelled",
+      "updated": "Booking updated",
+      "new_passenger": "New passenger",
+      "day_reminder": "Trip today"
+    },
+    "parcel": {
+      "new_request": "New parcel",
+      "confirmed": "Delivery confirmed",
+      "rejected": "Delivery declined",
+      "cancelled": "Delivery cancelled",
+      "picked_up": "Parcel with driver",
+      "delivered": "Parcel delivered"
+    },
+    "trip": {
+      "created": "Trip creation",
+      "updated": "Trip update",
+      "started": "Trip started",
+      "completed": "Trip completed",
+      "cancelled": "Trip cancelled"
+    },
+    "payment": {
+      "wallet": "Wallet top-up",
+      "booking": "Booking payment"
+    },
+    "rating": "Rating",
+    "search": {
+      "new_trips": "New trips"
+    },
+    "driver": {
+      "create_trip": "Create a trip"
+    },
+    "user": {
+      "comeback": "Come back to Yo'ldosh"
+    },
+    "wallet": {
+      "negative_balance": "Wallet negative balance"
+    },
+    "new_message": "New message",
+    "test": {
+      "server_heartbeat": "🟢 Server is running",
+      "action": "Action performed"
+    }
+  },
+  "error": {
+    "trip": {
+      "not_found": "Trip not found"
+    },
+    "booking": {
+      "failed": "Booking failed"
+    },
+    "unauthorized": "Authorization required",
+    "forbidden": "Access forbidden"
+  },
+  "general": {
+    "welcome": "Welcome",
+    "thank_you": "Thank you"
+  }
+}

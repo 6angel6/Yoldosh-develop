@@ -1,0 +1,54 @@
+# Node.js
+node_modules/
+npm-debug.log*
+
+# TypeScript
+*.tsbuildinfo
+dist/
+
+# IDEs
+.idea/
+.vscode/
+.env
+backend.txt
+shared/scripts/code.txt
+main.py
+.dockerignore
+
+src/**/*.js
+src/**/*.js.map
+shared/**/*.js
+shared/**/*.js.map
+
+coverage/
+public/
+data/
+
+id_rsa.pub
+id_rsa
+
+# Secrets: APNs ключи/сертификаты, provisioning
+*.p8
+*.cer
+*.p12
+*.mobileprovision
+
+parser/
+
+# Локальные материалы: аудит, черновики, эксперименты.
+audit/
+
+# Рабочая область: ТЗ, журнал работ и вспомогательные скрипты.
+prodready/
+
+# Python-байткод (priceService)
+__pycache__/
+*.pyc
+
+# Markdown-документация в репо не добавляется: игнорируем все новые *.md,
+# кроме README. Уже закоммиченные .md это правило не трогает — gitignore
+# действует только на неотслеживаемые файлы.
+*.md
+!README.md
+# Firebase service account: секрет, в репозиторий не коммитится
+fcm.json

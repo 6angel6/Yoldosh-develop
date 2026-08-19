@@ -1,0 +1,153 @@
+server:
+  http_listen_port: 9080
+  grpc_listen_port: 0
+  log_level: warn
+
+positions:
+  filename: /tmp/positions.yaml
+
+clients:
+  - url: http://loki:3100/loki/api/v1/push
+    batchwait: 1s
+    batchsize: 1048576
+
+scrape_configs:
+  # Node.js Application Logs (JSON structured)
+  - job_name: yoldosh-app
+    docker_sd_configs:
+      - host: unix:///var/run/docker.sock
+        refresh_interval: 5s
+        filters:
+          - name: name
+            values: ['yoldosh-app']
+    
+    relabel_configs:
+      - source_labels: ['__meta_docker_container_name']
+        regex: '/(.*)'
+        target_label: 'container'
+      - source_labels: ['__meta_docker_container_log_stream']
+        target_label: 'logstream'
+      - replacement: 'yoldosh-app'
+        target_label: 'job'
+      - replacement: 'production'
+        target_label: 'environment'
+    
+    # JSON log parsing and labeling
+    pipeline_stages:
+      - json:
+          expressions:
+            level: level
+            msg: msg
+            method: req.method
+            url: req.url
+            status: res.statusCode
+            duration: responseTime
+            userId: userId
+            tripId: tripId
+            requestId: requestId
+            error: err.message
+
+      # Extract labels from JSON.
+      # ВАЖНО: requestId/traceId НЕ в лейблах — они уникальны на запрос и
+      # взорвали бы кардинальность стримов Loki (лимит max_global_streams).
+      # Их фильтруют по полю: {job="yoldosh-app"} | json | requestId="..."
+      # Лейблы держим только низкокардинальные: level, method, status.
+      - labels:
+          level:
+          method:
+          status:
+
+      # pino пишет time как epoch-миллисекунды → UnixMs (не RFC3339)
+      - timestamp:
+          source: time
+          format: UnixMs
+
+  # PostgreSQL Logs
+  - job_name: postgres
+    docker_sd_configs:
+      - host: unix:///var/run/docker.sock
+        refresh_interval: 5s
+        filters:
+          - name: name
+            values: ['yoldosh-db']
+    
+    relabel_configs:
+      - source_labels: ['__meta_docker_container_name']
+        regex: '/(.*)'
+        target_label: 'container'
+      - replacement: 'postgres'
+        target_label: 'job'
+      - replacement: 'production'
+        target_label: 'environment'
+    
+    pipeline_stages:
+      - regex:
+          expression: '^(?P<timestamp>\S+\s+\S+)\s+\[(?P<pid>\d+)\]\s+(?P<level>\w+):\s+(?P<message>.*)$'
+      - labels:
+          level:
+          pid:
+      - timestamp:
+          source: timestamp
+          format: '2006-01-02 15:04:05 MST'
+
+  # Redis Logs
+  - job_name: redis
+    docker_sd_configs:
+      - host: unix:///var/run/docker.sock
+        refresh_interval: 5s
+        filters:
+          - name: name
+            values: ['yoldosh-redis']
+    
+    relabel_configs:
+      - source_labels: ['__meta_docker_container_name']
+        regex: '/(.*)'
+        target_label: 'container'
+      - replacement: 'redis'
+        target_label: 'job'
+      - replacement: 'production'
+        target_label: 'environment'
+
+  # Nginx Access Logs
+  - job_name: nginx-access
+    docker_sd_configs:
+      - host: unix:///var/run/docker.sock
+        refresh_interval: 5s
+        filters:
+          - name: name
+            values: ['yoldosh-nginx']
+    
+    relabel_configs:
+      - source_labels: ['__meta_docker_container_name']
+        regex: '/(.*)'
+        target_label: 'container'
+      - source_labels: ['__meta_docker_container_log_stream']
+        target_label: 'logstream'
+      - replacement: 'nginx-access'
+        target_label: 'job'
+      - replacement: 'production'
+        target_label: 'environment'
+    
+    pipeline_stages:
+      - regex:
+          expression: '^(?P<remote_addr>\S+)\s+-\s+\S+\s+\[(?P<time>[^\]]+)\]\s+"(?P<method>\S+)\s+(?P<path>\S+)\s+\S+"\s+(?P<status>\d+)\s+(?P<bytes_sent>\d+).*$'
+      - labels:
+          method:
+          status:
+
+  # All other containers
+  - job_name: containers
+    docker_sd_configs:
+      - host: unix:///var/run/docker.sock
+        refresh_interval: 5s
+    
+    relabel_configs:
+      - source_labels: ['__meta_docker_container_name']
+        regex: '/(.*)'
+        target_label: 'container'
+      - source_labels: ['__meta_docker_container_log_stream']
+        target_label: 'logstream'
+      - source_labels: ['__meta_docker_container_label_logging_jobname']
+        target_label: 'job'
+      - replacement: 'production'
+        target_label: 'environment'

@@ -1,0 +1,59 @@
+{{ define "__alert_severity_emoji" -}}
+{{- if eq .Labels.severity "critical" -}}
+🚨
+{{- else if eq .Labels.severity "warning" -}}
+⚠️
+{{- else if eq .Labels.severity "info" -}}
+ℹ️
+{{- else -}}
+🔔
+{{- end -}}
+{{- end -}}
+
+{{ define "__alert_component_emoji" -}}
+{{- if eq .Labels.component "application" -}}
+🌐
+{{- else if eq .Labels.component "database" -}}
+🗄️
+{{- else if eq .Labels.component "cache" -}}
+💾
+{{- else if eq .Labels.component "business" -}}
+💼
+{{- else -}}
+📊
+{{- end -}}
+{{- end -}}
+
+{{ define "telegram.default" -}}
+{{ range .Alerts }}
+{{ if eq .Status "firing" }}
+{{ template "__alert_severity_emoji" . }} {{ template "__alert_component_emoji" . }} <b>{{ .Labels.severity | toUpper }}</b> • <b>{{ .Labels.alertname }}</b>
+{{ else }}
+✅ <b>RESOLVED</b> • <b>{{ .Labels.alertname }}</b>
+{{ end }}
+
+<b>{{ or .Annotations.summary .Labels.alertname }}</b>
+{{ if .Annotations.description }}
+{{ .Annotations.description }}
+{{ end }}
+
+{{ if .Value }}<b>📈 Значение:</b> {{ printf "%.2f" .Value }}{{ end }}
+{{ if .Labels.instance }}<b>📍 Инстанс:</b> <code>{{ .Labels.instance }}</code>{{ end }}
+{{ if .Labels.job }}<b>🧩 Job:</b> {{ .Labels.job }}{{ end }}
+{{ if .Labels.component }}<b>🏷️ Компонент:</b> {{ .Labels.component }}{{ end }}
+{{ if .Labels.endpoint }}<b>🔗 Endpoint:</b> {{ .Labels.endpoint }}{{ end }}
+{{ if .Labels.route }}<b>🛣️ Route:</b> {{ .Labels.route }}{{ end }}
+{{ if .Labels.status }}<b>📟 Status:</b> {{ .Labels.status }}{{ end }}
+{{ if .Labels.team }}<b>👥 Команда:</b> {{ .Labels.team }}{{ end }}
+<b>⏰ Время:</b> {{ .StartsAt.Format "15:04:05 02.01.2006" }}
+{{ if .Annotations.runbook_url }}<b>📚 Runbook:</b> {{ .Annotations.runbook_url }}{{ end }}
+
+{{ if eq .Status "firing" }}
+⚠️ <b>Статус:</b> Активен
+{{ else }}
+✅ <b>Статус:</b> Решено
+{{ end }}
+
+━━━━━━━━━━━━━━━━━━━
+{{ end }}
+{{- end }}

@@ -1,0 +1,182 @@
+config:
+  target: "http://localhost:5000/api/v1"
+  processor: "C:/Users/brawl/WebstormProjects/Yoldosh/test/load/processor.js" # Подключаем наши функции (репо-относительный путь)
+  http:
+    timeout: 60000 # 60s timeout to avoid client-side aborts under load
+  phases:
+    - duration: 60
+      arrivalRate: 2
+      name: "Warm up (Прогрев)"
+    - duration: 120
+      arrivalRate: 5
+      rampTo: 50
+      name: "Ramp up (Разгон)"
+    - duration: 300
+      arrivalRate: 50
+      name: "High Load (Боевая нагрузка)"
+
+  # Загружаем CSV с пользователями (телефон, имя)
+  payload:
+    path: "C:/Users/brawl/WebstormProjects/Yoldosh/test/load/users.csv"
+    fields:
+      - "phoneNumber"
+      - "firstName"
+    order: "sequence" # Берем по порядку, чтобы не было конфликтов при регистрации
+    skipHeader: true
+
+  defaults:
+    headers:
+      Content-Type: "application/json"
+
+  # Если ошибок > 1%, тест помечается как проваленный
+  ensure:
+    maxErrorRate: 1
+
+scenarios:
+  # ------------------------------------------------------------------
+  # СЦЕНАРИЙ 1: ПАССАЖИР (Ищет, смотрит, бронирует) - Вес 70%
+  # ------------------------------------------------------------------
+  - name: "Passenger Flow"
+    weight: 7
+    beforeRequest: "generateTripData" # Генерируем координаты перед запуском
+    flow:
+      # 1. AUTH (Вход / Регистрация)
+      - post:
+          url: "/auth/request-otp"
+          json:
+            phoneNumber: "{{ phoneNumber }}"
+
+      - post:
+          url: "/auth/verify-otp"
+          json:
+            phoneNumber: "{{ phoneNumber }}"
+            otp: "0000" # Предполагаем, что для тестов у тебя этот OTP
+          capture:
+            - json: "$.data.accessToken"
+              as: "token"
+            - json: "$.data.user.id"
+              as: "userId"
+            - json: "$.data.isNewUser" # Проверяем, новый ли юзер
+              as: "isNew"
+
+      # 2. PROFILE (Если новый - заполняем)
+      - think: 1 # Имитация задержки человека
+      - post:
+          url: "/auth/complete-profile"
+          headers:
+            Authorization: "Bearer {{ token }}"
+          ifTrue: "isNew" # Выполнить только если isNew == true
+          json:
+            userId: "{{ userId }}"
+            firstName: "{{ firstName }}"
+            lastName: "TestUser"
+            gender: "MALE"
+
+      # 3. SEARCH (Тяжелый запрос к БД)
+      # Используем переменные из processor.js (fromLat, toLat...)
+      - get:
+          url: "/trip/search"
+          headers:
+            Authorization: "Bearer {{ token }}"
+          qs:
+            from_latitude: "{{ fromLat }}"
+            from_longitude: "{{ fromLng }}"
+            to_latitude: "{{ toLat }}"
+            to_longitude: "{{ toLng }}"
+            departure_date: "{{ departureTime }}"
+            requested_seats: 1
+
+      # 4. USER INFO (Легкие запросы)
+      - get:
+          url: "/notification"
+          headers:
+            Authorization: "Bearer {{ token }}"
+      - get:
+          url: "/user/me"
+          headers:
+            Authorization: "Bearer {{ token }}"
+
+  # ------------------------------------------------------------------
+  # СЦЕНАРИЙ 2: ВОДИТЕЛЬ (Регистрируется, создает машину, создает поездку) - Вес 30%
+  # ------------------------------------------------------------------
+  - name: "Driver Flow"
+    weight: 3
+    beforeRequest: "generateTripData"
+    flow:
+      # 1. AUTH
+      - post:
+          url: "/auth/request-otp"
+          json:
+            phoneNumber: "{{ phoneNumber }}"
+      - post:
+          url: "/auth/verify-otp"
+          json:
+            phoneNumber: "{{ phoneNumber }}"
+            otp: "0000"
+          capture:
+            - json: "$.data.accessToken"
+              as: "token"
+            - json: "$.data.user.id"
+              as: "userId"
+            - json: "$.data.isNewUser"
+              as: "isNew"
+
+      # 2. PROFILE
+      - post:
+          url: "/auth/complete-profile"
+          headers:
+            Authorization: "Bearer {{ token }}"
+          ifTrue: "isNew"
+          json:
+            userId: "{{ userId }}"
+            firstName: "{{ firstName }}"
+            lastName: "DriverUser"
+            gender: "MALE"
+
+      # 3. CREATE CAR (Водитель обязан иметь машину)
+      # Если у юзера уже есть машина, API может вернуть 400 или 200.
+      # Для теста создаем новую.
+      - post:
+          url: "/car"
+          headers:
+            Authorization: "Bearer {{ token }}"
+          json:
+            model: "{{ carModel }}"
+            number: "{{ carNumber }}"
+            color: "White"
+            year: 2023
+          capture:
+            - json: "$.data.car.id" # Подставь правильный путь из ответа API
+              as: "carId"
+          # Если машина уже была, пробуем получить список (fallback)
+
+      # 4. CREATE TRIP (Самая важная часть для водителя)
+      - think: 2
+      - post:
+          url: "/trip"
+          headers:
+            Authorization: "Bearer {{ token }}"
+          json:
+            car_id: "{{ carId }}"
+            from_latitude: "{{ fromLat }}"
+            from_longitude: "{{ fromLng }}"
+            to_latitude: "{{ toLat }}"
+            to_longitude: "{{ toLng }}"
+            departure_time: "{{ departureTime }}"
+            seats_total: 4
+            price_per_seat: 50000
+            description: "Artillery High Load Test Trip"
+          capture:
+            - json: "$.data.trip.id"
+              as: "tripId"
+
+      # 5. START / END TRIP (Жизненный цикл)
+      - post:
+          url: "/trip/{{ tripId }}/start"
+          headers:
+            Authorization: "Bearer {{ token }}"
+      - think: 1
+      - post:
+          url: "/trip/{{ tripId }}/complete"
+          headers:
+            Authorization: "Bearer {{ token }}"

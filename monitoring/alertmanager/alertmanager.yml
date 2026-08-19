@@ -1,0 +1,123 @@
+global:
+  resolve_timeout: 5m
+  # Configure SMTP for email notifications (optional)
+  # smtp_smarthost: 'smtp.gmail.com:587'
+  # smtp_from: 'alerts@yoldosh.com'
+  # smtp_auth_username: 'your-email@gmail.com'
+  # smtp_auth_password: 'your-app-password'
+  
+  # Slack webhook (optional)
+  # slack_api_url: 'https://hooks.slack.com/services/YOUR/WEBHOOK/URL'
+  
+  # Telegram bot (настроено, см. docker-compose.yml)
+  # Bot: @YourAlertBot, Admin ID и Token в .env
+
+# Templates for custom alert formatting
+templates:
+  - '/etc/alertmanager/templates/*.tmpl'
+
+# Route tree for alert routing
+route:
+  receiver: 'default'
+  group_by: ['alertname', 'cluster', 'service', 'component']
+  group_wait: 10s
+  group_interval: 10s
+  repeat_interval: 12h
+  
+  # Порядок важен: ветки матчатся сверху вниз до первого совпадения (без continue).
+  # critical идёт первым (ловит любой critical, в т.ч. component=database),
+  # затем component-ветки для НЕкритичных, затем общие severity-ветки.
+  routes:
+    # Critical alerts - immediate notification (в т.ч. critical database)
+    - match:
+        severity: critical
+      receiver: 'critical'
+      group_wait: 5s
+      repeat_interval: 5m
+
+    # Database alerts (некритичные) — свой интервал
+    - match:
+        component: database
+      receiver: 'database'
+      group_wait: 15s
+      repeat_interval: 1h
+
+    # Business metrics alerts — свой интервал
+    - match:
+        component: business
+      receiver: 'business'
+      group_wait: 30s
+      repeat_interval: 6h
+
+    # Warning alerts (всё прочее)
+    - match:
+        severity: warning
+      receiver: 'warning'
+      group_wait: 30s
+      repeat_interval: 3h
+
+    # Info alerts
+    - match:
+        severity: info
+      receiver: 'info'
+      repeat_interval: 24h
+
+# Inhibition rules - suppress certain alerts when others are firing
+inhibit_rules:
+  # Inhibit warning if critical is firing
+  - source_match:
+      severity: 'critical'
+    target_match:
+      severity: 'warning'
+    equal: ['alertname', 'instance']
+  
+  # Inhibit all alerts if API is down (реальное имя алерта — AppDown)
+  - source_match:
+      alertname: 'AppDown'
+    target_match_re:
+      alertname: '.*'
+    equal: ['instance']
+
+# Receivers - where to send alerts
+receivers:
+  - name: 'default'
+    webhook_configs:
+      - url: 'http://alertmanager-bot:8080/alerts'
+        send_resolved: true
+  
+  - name: 'critical'
+    # Telegram через alertmanager-bot
+    webhook_configs:
+      - url: 'http://alertmanager-bot:8080/alerts'
+        send_resolved: true
+        max_alerts: 10
+    
+    # Email notifications (uncomment and configure)
+    # email_configs:
+    #   - to: 'oncall@yoldosh.com'
+    #     headers:
+    #       Subject: '🚨 CRITICAL: {{ .GroupLabels.alertname }}'
+  
+  - name: 'warning'
+    webhook_configs:
+      - url: 'http://alertmanager-bot:8080/alerts'
+        send_resolved: true
+        max_alerts: 10
+  
+  - name: 'info'
+    webhook_configs:
+      - url: 'http://alertmanager-bot:8080/alerts'
+        send_resolved: true
+        max_alerts: 10
+  
+  - name: 'business'
+    webhook_configs:
+      - url: 'http://alertmanager-bot:8080/alerts'
+        send_resolved: true
+        max_alerts: 10
+  
+  - name: 'database'
+    webhook_configs:
+      - url: 'http://alertmanager-bot:8080/alerts'
+        send_resolved: true
+        max_alerts: 10

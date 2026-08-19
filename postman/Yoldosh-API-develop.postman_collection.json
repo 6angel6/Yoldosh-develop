@@ -1,0 +1,1886 @@
+{
+  "info": {
+    "_postman_id": "yoldosh-api-v2-geo",
+    "name": "Yoldosh API v2.0-Geo",
+    "description": "Yoldosh back-end API documentation.\n\nServers:\n- Test: https://yoldosh-api.onrender.com/api/v1\n- Dev: http://localhost:5000/api/v1\n- Prod: https://api.yoldosh.uz/api/v1",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Health",
+      "item": [
+        {
+             "name": "Health Check",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/health",
+              "host": [
+                "{{baseUrl}}"
+              ]
+              "path": [
+                "health"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Metrics (Prometheus)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/metrics",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "metrics"
+              ]
+            }
+          },
+          "response": []
+        }
+      ],
+      "description": "Server health check"
+    },
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "1. Request OTP",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"phoneNumber\": \"+998901234567\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/request-otp",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "request-otp"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "2. Verify OTP",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"phoneNumber\": \"+998901234567\",\n    \"otp\": \"0000\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/verify-otp",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "verify-otp"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "3. Complete Profile",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "userId",
+                  "value": "uuid-user-id",
+                  "type": "text"
+                },
+                {
+                  "key": "firstName",
+                  "value": "John",
+                  "type": "text"
+                },
+                {
+                  "key": "lastName",
+                  "value": "Doe",
+                  "type": "text"
+                },
+                {
+                  "key": "gender",
+                  "value": "MALE",
+                  "type": "text"
+                },
+                {
+                  "key": "date_of__birthday",
+                  "value": "1990-01-01",
+                  "type": "text"
+                },
+                {
+                  "key": "avatar",
+                  "type": "file",
+                  "src": []
+                },
+                {
+                  "key": "referralCode",
+                  "value": "OPTIONALCODE",
+                  "type": "text"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/complete-profile",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "complete-profile"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Refresh Token",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/auth/refresh-token",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "refresh-token"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Logout",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/auth/logout",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "logout"
+              ]
+            }
+          },
+          "response": []
+        }
+      ],
+      "description": "Authentication, registration, and user session management"
+    },
+    {
+      "name": "User",
+      "item": [
+        {
+          "name": "Get Me",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/user/me",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "user",
+                "me"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Profile",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+                "raw": "{{baseUrl}}/user/me/profile",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "user",
+                "me",
+                "profile"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Update Profile",
+          "request": {
+            "method": "PATCH",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"firstName\": \"John\",\n    \"lastName\": \"Wick\",\n    \"bio\": \"I love dogs\",\n    \"preferred_navigator\": \"YANDEX_NAVI\",\n    \"smoking_allowed\": false,\n    \"door_pickup\": true,\n    \"food_stop\": false,\n    \"garage\": \"EMPTY\",\n    \"pets_allowed\": false\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/user/me/profile",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "user",
+                "me",
+                "profile"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Update Avatar",
+          "request": {
+            "method": "PUT",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "avatar",
+                  "type": "file",
+                  "src": []
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/user/avatar",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "user",
+                "avatar"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Update FCM Token",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"fcmToken\": \"device_token_string\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/user/fcm-token",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "user",
+                "fcm-token"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get User By ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/user/:id",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "user",
+                ":id"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "user-uuid"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Report User",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"reason\": \"Rude behavior and unsafe driving.\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/user/:userId/report",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "user",
+                ":userId",
+                "report"
+              ],
+              "variable": [
+                {
+                  "key": "userId",
+                  "value": "target-user-uuid"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get My Promocodes",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/user/me/promocodes",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "user",
+                "me",
+                "promocodes"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Activate Promocode",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"code\": \"WELCOME2025\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/user/me/promocodes/activate",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "user",
+                "me",
+                "promocodes",
+                "activate"
+              ]
+            }
+          },
+          "response": []B 
+        },
+        {
+          "name": "Delete Account",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/user/account",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "user",
+                "account"
+              ]
+            }
+          },
+          "response": []
+        }
+      ],
+      "description": "User profile, avatar, and report management"
+    },
+    {
+      "name": "Car",
+      "item": [
+        {
+          "name": "Create Car (Driver App)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "firstName",
+                  "value": "Name",
+                  "type": "text"
+                },
+                {
+                  "key": "lastName",
+                  "value": "Surname",
+                  "type": "text"
+                },
+                {
+                  "key": "licensePinfl",
+                  "value": "12345678901234",
+                  "type": "text"
+                },
+                {
+                  "key": "govNumber",
+                  "value": "01A123AA",
+                  "type": "text"
+                },
+                {
+                  "key": "make",
+                  "value": "Chevrolet",
+                  "type": "text"
+                },
+                {
+                  "key": "model",
+                  "value": "Cobalt",
+                  "type": "text"
+                },
+                {
+                  "key": "color",
+                  "value": "White",
+                  "type": "text"
+                },
+                {
+                  "key": "techPassportSerial",
+                  "value": "AAF1234567",
+                  "type": "text"
+                },
+                {
+                  "key": "issueDate",
+                  "value": "2023-01-01",
+                  "type": "text"
+                },
+                {
+                  "key": "seats",
+                  "value": "4",
+                  "type": "text"
+                },
+                {
+                  "key": "licenseFront",
+                  "type": "file",
+                  "src": []
+                },
+                {
+                  "key": "techPassportFront",
+                  "type": "file",
+                  "src": []
+                },
+                {
+                  "key": "techPassportBack",
+                  "type": "file",
+                  "src": []
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/car",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "car"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Resubmit Car App",
+          "request": {
+            "method": "PATCH",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "firstName",
+                  "value": "Name",
+                  "type": "text"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/car/:id/resubmit",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "car",
+                ":id",
+                "resubmit"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "car-uuid"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get My Cars",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/car/my-cars",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "car",
+                "my-cars"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Car By ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/car/:id",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "car",
+                ":id"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "car-uuid"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Update Car",
+          "request": {
+            "method": "PATCH",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"color\": \"Black\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/car/:id",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "car",
+                ":id"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "car-uuid"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Car",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/car/:id",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "car",
+                ":id"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "car-uuid"
+                }
+              ]
+            }
+          },
+          "response": []
+        }
+      ],
+      "description": "Driver's car and car model management"
+    },
+    {
+      "name": "Trip",
+      "item": [
+        {
+          "name": "Create Trip",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"car_id\": \"uuid-car-id\",\n    \"from_latitude\": 41.311081,\n    \"from_longitude\": 69.240562,\n    \"to_latitude\": 39.654300,\n    \"to_longitude\": 66.959700,\n    \"departure_ts\": \"2023-12-31T10:00:00Z\",\n    \"seats_available\": 3,\n    \"price_per_person\": 50000,\n    \"max_two_back\": false,\n    \"comment\": \"No smoking please\",\n    \"distance\": 300000,\n    \"duration\": 14000\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/trip",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "trip"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Search Trips",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/trip/search?from_latitude=41.31&from_longitude=69.24&to_latitude=39.65&to_longitude=66.95&departure_date=2023-12-31T00:00:00Z&requested_seats=1",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "trip",
+                "search"
+              ],
+              "query": [
+                {
+                  "key": "from_latitude",
+                  "value": "41.31"
+                },
+                {
+                  "key": "from_longitude",
+                  "value": "69.24"
+                },
+                {
+                  "key": "to_latitude",
+                  "value": "39.65"
+                },
+                {
+                  "key": "to_longitude",
+                  "value": "66.95"
+                },
+                {
+                  "key": "departure_date",
+                  "value": "2023-12-31T00:00:00Z"
+                },
+                {
+                  "key": "requested_seats",
+                  "value": "1"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get My Activity",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/trip/my-activity?role=driver&page=1&limit=10",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "trip",
+                "my-activity"
+              ],
+              "query": [
+                {
+                  "key": "role",
+                  "value": "driver",
+                  "description": "driver or passenger"
+                },
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Price Recommendation",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/trip/req-price?fromRegionId=1&toRegionId=2",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "trip",
+                "req-price"
+              ],
+              "query": [
+                {
+                  "key": "fromRegionId",
+                  "value": "1"
+                },
+                {
+                  "key": "toRegionId",
+                  "value": "2"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Trip Details",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/trip/:tripId",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "trip",
+                ":tripId"
+              ],
+              "variable": [
+                {
+                  "key": "tripId",
+                  "value": "trip-uuid"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Update Trip",
+          "request": {
+            "method": "PATCH",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"seats_available\": 2,\n    \"comment\": \"Updated comment\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/trip/:tripId",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "trip",
+                ":tripId"
+              ],
+              "variable": [
+                {
+                  "key": "tripId",
+                  "value": "trip-uuid"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Cancel Trip",
+          "request": {
+            "method": "PATCH",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/trip/:tripId/cancel",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "trip",
+                ":tripId",
+                "cancel"
+              ],
+              "variable": [
+                {
+                  "key": "tripId",
+                  "value": "trip-uuid"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Start Trip",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/trip/:tripId/start",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "trip",
+                ":tripId",
+                "start"
+              ],
+              "variable": [
+                {
+                  "key": "tripId",
+                  "value": "trip-uuid"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Complete Trip",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/trip/:tripId/complete",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "trip",
+                ":tripId",
+                "complete"
+              ],
+              "variable": [
+                {
+                  "key": "tripId",
+                  "value": "trip-uuid"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Report Trip",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"reason\": \"Driver did not show up.\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/trip/:tripId/report",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "trip",
+                ":tripId",
+                "report"
+              ],
+              "variable": [
+                {
+                  "key": "tripId",
+                  "value": "trip-uuid"
+                }
+              ]
+            }
+          },
+          "response": []
+        }
+      ],
+      "description": "Trip management (creation, search, editing, reporting)"
+    },
+    {
+      "name": "Booking",
+      "item": [
+        {
+          "name": "Create Booking",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"tripId\": \"trip-uuid\",\n    \"from_city\": \"Tashkent\",\n    \"from_address\": \"Chilanzar\",\n    \"pickup_latitude\": 41.311081,\n    \"pickup_longitude\": 69.240562,\n    \"to_city\": \"Samarkand\",\n    \"to_address\": \"City Center\",\n    \"dropoff_latitude\": 39.654300,\n    \"dropoff_longitude\": 66.959700,\n    \"seatsBooked\": 1\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/booking",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "booking"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Cancel Booking",
+          "request": {
+            "method": "PATCH",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"cancellationReason\": \"Change of plans\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/booking/:bookingId/cancel",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "booking",
+                ":bookingId",
+                "cancel"
+              ],
+              "variable": [
+                {
+                  "key": "bookingId",
+                  "value": "booking-uuid"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Booking (Driver View)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"bookingId\": \"booking-uuid\",\n    \"passengerId\": \"passenger-uuid\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/booking",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "booking"
+              ]
+            }
+          },
+          "response": []
+        }
+      ],
+      "description": "Seat booking in trips"
+    },
+    {
+      "name": "Payment",
+      "item": [
+        {
+          "name": "Paynet Webhook",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Basic BASE64CREDS",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"method\": \"PerformTransaction\",\n    \"params\": {\n        \"amount\": 1000,\n        \"serviceId\": 1,\n        \"transactionId\": 12345,\n        \"fields\": { \"client_id\": \"998901234567\" }\n    }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/payment/paynet",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "payment",
+                "paynet"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Ipak Callback",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/payment/callbackIpak",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "payment",
+                "callbackIpak"
+              ]
+            }
+          },
+          "response": []
+        }
+      ],
+      "description": "Payment processing"
+    },
+    {
+      "name": "Wallet",
+      "item": [
+        {
+          "name": "Get My Wallet",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/wallet/me",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "wallet",
+                "me"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Transactions",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/wallet/me/transactions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "wallet",
+                "me",
+                "transactions"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Deposit to Wallet",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"userCardId\": \"card-uuid\",\n    \"amount\": 50000\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/wallet/deposit",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "wallet",
+                "deposit"
+              ]
+            }
+          },
+          "response": []
+        }
+      ],
+      "description": "User's internal wallet management"
+    },
+    {
+      "name": "User-Cards",
+      "item": [
+        {
+          "name": "Create User Card",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/card/createUserCard",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "card",
+                "createUserCard"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get All Cards",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/card/getAllUsersCards",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "card",
+                "getAllUsersCards"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Card",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"userCardId\": \"card-uuid\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/card/deleteCard",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "card",
+                "deleteCard"
+              ]
+            }
+          },
+          "response": []
+        }
+      ],
+      "description": "Methods for managing user's bank cards"
+    },
+    {
+      "name": "Rating",
+      "item": [
+        {
+          "name": "Create Rating",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"tripId\": \"trip-uuid\",\n    \"ratedUserId\": \"target-user-uuid\",\n    \"rating\": 5,\n    \"feedback\": \"Great driver!\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/ratings",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "ratings"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get User Ratings",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/ratings/:userId",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "ratings",
+                ":userId"
+              ],
+              "variable": [
+                {
+                  "key": "userId",
+                  "value": "user-uuid"
+                }
+              ]
+            }
+          },
+          "response": []
+        }
+      ],
+      "description": "Creating and managing ratings and reviews"
+    },
+    {
+      "name": "Chat",
+      "item": [
+        {
+          "name": "Get My Chats",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/chat",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "chat"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Start Chat",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"tripId\": \"trip-uuid\",\n    \"participant2Id\": \"other-user-uuid\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/chat",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "chat"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Messages",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/chat/:chatId/messages",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "chat",
+                ":chatId",
+                "messages"
+              ],
+              "variable": [
+                {
+                  "key": "chatId",
+                  "value": "chat-uuid"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Post Message",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "content",
+                  "value": "Hello!",
+                  "type": "text"
+                },
+                {
+                  "key": "media",
+                  "type": "file",
+                  "src": []
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/chat/:chatId/messages",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "chat",
+                ":chatId",
+                "messages"
+              ],
+              "variable": [
+                {
+                  "key": "chatId",
+                  "value": "chat-uuid"
+                }
+              ]
+            }
+          },
+          "response": []
+        }
+      ],
+      "description": "Messaging between users"
+    },
+    {
+      "name": "Notification",
+      "item": [
+        {
+          "name": "Get Notifications",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/notification",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "notification"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Mark Read",
+          "request": {
+            "method": "PATCH",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/notification/:notificationId/read",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "notification",
+                ":notificationId",
+                "read"
+              ],
+              "variable": [
+                {
+                  "key": "notificationId",
+                  "value": "notif-uuid"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Send Global (Dev)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"content\": \"Hello World\",\n    \"type\": \"general\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/notification",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "notification"
+              ]
+            }
+          },
+          "response": []
+        }
+      ],
+      "description": "Receiving and managing notifications"
+    },
+    {
+      "name": "Search-history",
+      "item": [
+        {
+          "name": "Get History",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/user/search-history",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "user",
+                "search-history"
+              ]
+            }
+          },
+          "response": []
+        }
+      ],
+      "description": "Search history management"
+    },
+    {
+      "name": "Referral",
+      "item": [
+        {
+          "name": "Get My Referral Code",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/referral/get-ref",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "referral",
+                "get-ref"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Open Referral Link",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/referral/ref?code=CODE123",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "referral",
+                "ref"
+              ],
+              "query": [
+                {
+                  "key": "code",
+                  "value": "CODE123"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Match Install",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"ip\": \"127.0.0.1\",\n    \"userAgent\": \"Mozilla...\",\n    \"language\": \"en\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/referral/match-install",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "referral",
+                "match-install"
+              ]
+            }
+          },
+          "response": []
+        }
+      ],
+      "description": "Referral system management"
+    },
+    {
+      "name": "Admin",
+      "item": [
+        {
+          "name": "Login",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"email\": \"admin@yoldosh.uz\",\n    \"password\": \"password\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/admin/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "login"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Me",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/me",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "me"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Statistics",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/stats",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "stats"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Reports",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/reports?status=PENDING",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "reports"
+              ],
+              "query": [
+                {
+                  "key": "status",
+                  "value": "PENDING"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Ban User",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"reason\": \"Spamming\",\n    \"durationInDays\": 7\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/admin/users/:userId/ban",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "users",
+                ":userId",
+                "ban"
+              ],
+              "variable": [
+                {
+                  "key": "userId",
+                  "value": "user-uuid"
+                }
+              ]
+            }
+          },
+          "response": []
+        }
+      ],
+      "description": "Methods for administrators"
+    },
+    {
+      "name": "SuperAdmin",
+      "item": [
+        {
+          "name": "Create Admin",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"email\": \"new.admin@yoldosh.uz\",\n    \"firstName\": \"Admin\",\n    \"lastName\": \"User\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/super-admin/admins",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "super-admin",
+                "admins"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get All Admins",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/super-admin/admins",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "super-admin",
+                "admins"
+              ]
+            }
+          },
+          "response": []
+        }
+      ],
+      "description": "Methods for super administrators"
+    }
+  ],
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          ""
+        ]
+      }
+    },
+    {
+      "listen": "test",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          ""
+        ]
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "https://yoldosh-api.onrender.com/api/v1",
+      "type": "string"
+    },
+    {
+      "key": "token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "adminToken",
+      "value": "",
+      "type": "string"
+    }
+  ]
+}

@@ -1,0 +1,34 @@
+config:
+  target: "http://localhost:5000/api/v1"
+  processor: "./processor.js"
+  http:
+    timeout: 60000
+  payload:
+    path: "./users.csv"
+    fields:
+      - "phoneNumber"
+      - "firstName"
+    order: "sequence"
+    skipHeader: true
+  defaults:
+    headers:
+      Content-Type: "application/json"
+  ensure:
+    maxErrorRate: 5
+phases:
+  - duration: 10
+    arrivalRate: 10
+scenarios:
+  - name: "Smoke Passenger"
+    weight: 1
+    beforeRequest: "generateTripData"
+    flow:
+      - post:
+          url: "/auth/request-otp"
+          json:
+            phoneNumber: "{{ phoneNumber }}"
+      - post:
+          url: "/auth/verify-otp"
+          json:
+            phoneNumber: "{{ phoneNumber }}"
+            otp: "0000"

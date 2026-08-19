@@ -1,0 +1,598 @@
+services:
+  nginx:
+    build:
+      context: ./nginx
+      dockerfile: Dockerfile
+    container_name: yoldosh-nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "81:81"
+    volumes:
+      - public-data:/app/public
+      - certbot_certs:/etc/letsencrypt
+      - certbot_webroot:/var/www/certbot
+    depends_on:
+      - yoldosh-service
+    networks:
+      - yoldosh-net
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+        reservations:
+          memory: 128M
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost/" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  certbot:
+    image: certbot/certbot
+    container_name: certbot
+    volumes:
+      - certbot_certs:/etc/letsencrypt
+      - certbot_webroot:/var/www/certbot
+    entrypoint: /bin/sh
+    command: >
+      -c "trap exit TERM; while :; do certbot renew --webroot -w /var/www/certbot --quiet; sleep 12h; done"
+    networks:
+      - yoldosh-net
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+        reservations:
+          memory: 64M
+
+  certbot-renew:
+    image: certbot/certbot
+    container_name: certbot-renew
+    restart: unless-stopped
+    volumes:
+      - ./certbot/www:/var/www/certbot
+      - ./certbot/conf:/etc/letsencrypt
+    entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew --webroot -w /var/www/certbot; sleep 12h & wait $${!}; done;'"
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+        reservations:
+          memory: 64M
+
+  # Миграции БД - запускаются перед основным приложением
+  yoldosh-migrations:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: yoldosh-migrations
+    env_file: .env
+    environment:
+      - DB_HOST=db
+      - DB_USER=${DB_USER}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - DB_NAME=${DB_NAME}
+      - DB_PORT=5432
+      - NODE_ENV=production
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - yoldosh-net
+    command: sh -c "npx --no-install sequelize db:migrate"
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+        reservations:
+          memory: 128M
+    restart: on-failure
+
+  yoldosh-service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: yoldosh-app
+    restart: always
+    env_file: .env
+    environment:
+      - DOCKER_ENV=true
+      - DB_HOST=db
+      - DB_USER=${DB_USER}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - DB_NAME=${DB_NAME}
+      - DB_PORT=5432
+      - REDIS_URL=redis://redis-cache:6379
+      - REDIS_QUEUE_URL=redis://redis-queue:6379
+      - JWT_SECRET=${JWT_SECRET}
+      - JWT_REFRESH_SECRET=${JWT_REFRESH_SECRET}
+      - NODE_ENV=production
+      - NODE_OPTIONS=--max-old-space-size=768
+      # В docker API ходит в MinIO по внутреннему адресу сети (перекрывает localhost из .env).
+      - S3_ENDPOINT=http://minio:9000
+    volumes:
+      - public-data:/app/public
+    depends_on:
+      db:
+        condition: service_healthy
+      redis-cache:
+        condition: service_healthy
+      redis-queue:
+        condition: service_healthy
+      yoldosh-migrations:
+        condition: service_completed_successfully
+    expose:
+      - "5000"
+      - "9100"
+    ports:
+      - "5000:5000"
+      # 9100 (метрики) наружу НЕ публикуем — Prometheus скрейпит по internal-сети
+      # (yoldosh-service:9100). Экспозиция метрик наружу закрыта.
+    networks:
+      - yoldosh-net
+    deploy:
+      resources:
+        limits:
+          memory: 1024M
+        reservations:
+          memory: 512M
+
+  db:
+    image: postgis/postgis:17-3.5-alpine
+    container_name: yoldosh-db
+    restart: always
+    environment:
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_NAME}
+      DB_REPL_USER: ${DB_REPL_USER}
+      DB_REPL_PASSWORD: ${DB_REPL_PASSWORD}
+    ports:
+      - "${DB_PORT}:5432"
+    volumes:
+      - postgres-primary-data:/var/lib/postgresql/data
+      - ./database/init-primary.sh:/docker-entrypoint-initdb.d/01-init-primary.sh
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - yoldosh-net
+    deploy:
+      resources:
+        limits:
+          memory: 1024M
+        reservations:
+          memory: 512M
+    command: |
+      postgres 
+      -c wal_level=replica 
+      -c hot_standby=on 
+      -c max_wal_senders=10 
+      -c max_replication_slots=10 
+      -c hot_standby_feedback=on
+      -c shared_buffers=256MB
+      -c effective_cache_size=768MB
+      -c maintenance_work_mem=64MB
+      -c work_mem=16MB
+      -c max_connections=100
+      -c listen_addresses='*'
+
+  db-replica:
+    image: postgis/postgis:17-3.5-alpine
+    container_name: yoldosh-db-replica
+    restart: always
+    environment:
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      DB_REPL_USER: ${DB_REPL_USER}
+      DB_REPL_PASSWORD: ${DB_REPL_PASSWORD}
+      PGDATA: /var/lib/postgresql/data
+    ports:
+      - "${DB_Replica_PORT}:5432"
+    volumes:
+      - postgres-replica-data:/var/lib/postgresql/data
+      - ./database/init-replica.sh:/init-replica.sh
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - yoldosh-net
+    depends_on:
+      db:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          memory: 768M
+        reservations:
+          memory: 384M
+    entrypoint: [ "/bin/bash", "/init-replica.sh" ]
+
+  redis-cache:
+    image: redis:7.2-alpine
+    container_name: yoldosh-redis-cache
+    restart: always
+    ports:
+      - "6379:6379" # Стандартный порт снаружи
+    # volumes:
+    #  - redis-cache-data:/data
+    networks:
+      - yoldosh-net
+    healthcheck:
+      test: [ "CMD", "redis-cli", "ping" ]
+      interval: 10s
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+    # Настройка: 200мб лимит, удаляем ВСЕ старые ключи (LRU), без сохранения на диск (save "")
+    command: redis-server --maxmemory 200mb --maxmemory-policy allkeys-lru --save ""
+
+    # --- 2. Redis для ОЧЕРЕДЕЙ BullMQ (Надежный, хранит вечно) ---
+  redis-queue:
+    image: redis:7.2-alpine
+    container_name: yoldosh-redis-queue
+    restart: always
+    ports:
+      - "6380:6379" # <-- ВАЖНО: Другой внешний порт (6380), чтобы не было конфликта
+    volumes:
+      - redis-queue-data:/data
+    networks:
+      - yoldosh-net
+    healthcheck:
+      test: [ "CMD", "redis-cli", "ping" ]
+      interval: 10s
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+    # Настройка: 200мб лимит, ЗАПРЕТ удалять ключи (noeviction), включен AOF для надежности
+    command: redis-server --maxmemory 200mb --maxmemory-policy noeviction --appendonly yes
+
+  # --- MinIO: бесплатное self-hosted S3-совместимое хранилище для медиа баннеров ---
+  minio:
+    image: minio/minio:latest
+    container_name: yoldosh-minio
+    restart: always
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-yoldosh}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-yoldosh-minio-secret}
+    ports:
+      - "9002:9000" # S3 API (9000/9001 заняты другим проектом на этой машине)
+      - "9003:9001" # веб-консоль MinIO
+    volumes:
+      - minio-data:/data
+    networks:
+      - yoldosh-net
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+        reservations:
+          memory: 256M
+
+  # Одноразовый init: создаёт бакет и делает его public-read (анонимное скачивание).
+  minio-createbucket:
+    image: minio/mc:latest
+    container_name: yoldosh-minio-init
+    depends_on:
+      minio:
+        condition: service_started
+    networks:
+      - yoldosh-net
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-yoldosh}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-yoldosh-minio-secret}
+      BUCKET: ${S3_BUCKET:-yoldosh-banners}
+    entrypoint: >
+      /bin/sh -c "
+      until mc alias set local http://minio:9000 \"$$MINIO_ROOT_USER\" \"$$MINIO_ROOT_PASSWORD\"; do echo 'waiting for minio...'; sleep 2; done;
+      mc mb --ignore-existing local/\"$$BUCKET\";
+      mc anonymous set download local/\"$$BUCKET\";
+      echo 'MinIO bucket ready (public-read):' \"$$BUCKET\";
+      "
+    restart: "no"
+
+  # --- Стек Мониторинга (Production-ready Observability) ---
+
+  # Prometheus - метрики и мониторинг
+  prometheus:
+    image: prom/prometheus:v2.48.0
+    container_name: prometheus
+    restart: unless-stopped
+    ports:
+      - "9091:9090"
+    volumes:
+      - ./monitoring/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./monitoring/prometheus/alerts:/etc/prometheus/alerts:ro
+      - ./monitoring/prometheus/rules:/etc/prometheus/rules:ro
+      - prometheus-data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--storage.tsdb.retention.time=7d'
+      - '--storage.tsdb.retention.size=3GB'
+      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
+      - '--web.console.templates=/usr/share/prometheus/consoles'
+      - '--web.enable-lifecycle'
+      - '--web.enable-admin-api'
+      - '--query.max-concurrency=10'
+      - '--query.max-samples=50000000'
+    networks:
+      - yoldosh-net
+    depends_on:
+      - alertmanager
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+        reservations:
+          cpus: '0.25'
+          memory: 256M
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:9090/-/healthy"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Alertmanager - управление алертами
+  alertmanager:
+    image: prom/alertmanager:v0.26.0
+    container_name: alertmanager
+    restart: unless-stopped
+    ports:
+      - "9093:9093"
+    volumes:
+      - ./monitoring/alertmanager:/etc/alertmanager:ro
+      - alertmanager-data:/alertmanager
+    command:
+      - '--config.file=/etc/alertmanager/alertmanager.yml'
+      - '--storage.path=/alertmanager'
+      - '--web.external-url=http://localhost:9093'
+      # одиночный узел: отключаем HA-gossip (иначе падает «No private IP found»)
+      - '--cluster.listen-address='
+    networks:
+      - yoldosh-net
+    deploy:
+      resources:
+        limits:
+          cpus: '0.2'
+          memory: 128M
+        reservations:
+          cpus: '0.1'
+          memory: 64M
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:9093/-/healthy"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Telegram Bot для Alertmanager
+  alertmanager-bot:
+    image: metalmatze/alertmanager-bot:0.4.3
+    container_name: alertmanager-bot
+    restart: unless-stopped
+    command:
+      - --alertmanager.url=http://alertmanager:9093
+      - --bolt.path=/data/bot.db
+      - --store=bolt
+      - --telegram.admin=${TELEGRAM_ADMIN_ID}
+      - --telegram.token=${TELEGRAM_BOT_TOKEN}
+      - --template.paths=/templates/default.tmpl
+    environment:
+      ALERTMANAGER_URL: http://alertmanager:9093
+      BOLT_PATH: /data/bot.db
+      STORE: bolt
+      TELEGRAM_ADMIN: "${TELEGRAM_ADMIN_ID}"
+      TELEGRAM_TOKEN: "${TELEGRAM_BOT_TOKEN}"
+      TEMPLATE_PATHS: /templates/default.tmpl
+    volumes:
+      - alertmanager-bot-data:/data
+      - ./monitoring/alertmanager/telegram-template.tmpl:/templates/default.tmpl:ro
+    networks:
+      - yoldosh-net
+    depends_on:
+      - alertmanager
+    deploy:
+      resources:
+        limits:
+          cpus: '0.1'
+          memory: 64M
+        reservations:
+          cpus: '0.05'
+          memory: 32M
+
+  # PostgreSQL Exporter - метрики БД
+  postgres-exporter:
+    image: prometheuscommunity/postgres-exporter:v0.16.0
+    container_name: postgres-exporter
+    restart: unless-stopped
+    environment:
+      DATA_SOURCE_NAME: "postgresql://${DB_USER}:${DB_PASSWORD}@db:5432/${DB_NAME}?sslmode=disable"
+    # Встроенные коллекторы v0.16 (без устаревшего --extend.query-path:
+    # кастомные queries.yaml были deprecated и ломали скрейп при загрузке)
+    command:
+      - "--log.level=warn"
+      - "--web.listen-address=:9187"
+      - "--no-collector.stat_bgwriter"
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - yoldosh-net
+    deploy:
+      resources:
+        limits:
+          cpus: '0.2'
+          memory: 128M
+        reservations:
+          cpus: '0.1'
+          memory: 64M
+
+  # Redis Exporter - метрики кэша
+  redis-exporter:
+    image: oliver006/redis_exporter:v1.55.0-alpine
+    container_name: redis-exporter
+    restart: unless-stopped
+    environment:
+      REDIS_ADDR: "redis-cache:6379"
+    depends_on:
+      - redis-cache
+    networks:
+      - yoldosh-net
+    deploy:
+      resources:
+        limits:
+          cpus: '0.1'
+          memory: 64M
+        reservations:
+          cpus: '0.05'
+          memory: 32M
+
+  # Node Exporter - метрики хоста (память/диск/CPU) для алертов OutOfMemory/DiskSpaceLow
+  node-exporter:
+    image: prom/node-exporter:v1.7.0
+    container_name: node-exporter
+    restart: unless-stopped
+    command:
+      - '--path.rootfs=/host'
+      - '--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)'
+    pid: host
+    volumes:
+      # :ro без rslave — совместимо с Docker Desktop (WSL2), на Linux-проде тоже ок
+      - '/:/host:ro'
+    networks:
+      - yoldosh-net
+    deploy:
+      resources:
+        limits:
+          cpus: '0.1'
+          memory: 64M
+        reservations:
+          cpus: '0.05'
+          memory: 32M
+
+  # Grafana - визуализация
+  grafana:
+    image: grafana/grafana:10.2.2
+    container_name: grafana
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - ./monitoring/grafana/config.ini:/etc/grafana/grafana.ini:ro
+    environment:
+      - GF_SECURITY_ADMIN_USER=${GRAFANA_USER:-admin}
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:-admin}
+      - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_SERVER_ROOT_URL=https://api.yoldosh.uz/grafana
+      - GF_SERVER_DOMAIN=api.yoldosh.uz
+      - GF_INSTALL_PLUGINS=
+      - GF_ANALYTICS_REPORTING_ENABLED=false
+      - GF_ANALYTICS_CHECK_FOR_UPDATES=false
+      - GF_LOG_LEVEL=warn
+      - GF_METRICS_ENABLED=false
+      - GF_EXPLORE_ENABLED=true
+    depends_on:
+      - prometheus
+      - loki
+    networks:
+      - yoldosh-net
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+        reservations:
+          cpus: '0.25'
+          memory: 128M
+    healthcheck:
+      test: ["CMD-SHELL", "wget --spider -q http://localhost:3000/api/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # --- Стек Логирования ---
+
+  # Loki - хранилище логов
+  loki:
+    image: grafana/loki:2.9.3
+    container_name: loki
+    restart: unless-stopped
+    ports:
+      - "3100:3100"
+    volumes:
+      - ./monitoring/loki/loki-config.yml:/etc/loki/local-config.yaml:ro
+      - loki-data:/loki
+    command: -config.file=/etc/loki/local-config.yaml
+    networks:
+      - yoldosh-net
+    deploy:
+      resources:
+        limits:
+          cpus: '0.4'
+          memory: 400M
+        reservations:
+          cpus: '0.2'
+          memory: 200M
+    healthcheck:
+      test: ["CMD-SHELL", "wget --spider -q http://localhost:3100/ready || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+
+  # Promtail - агент сбора логов
+  promtail:
+    image: grafana/promtail:3.0.0
+    container_name: promtail
+    restart: unless-stopped
+    volumes:
+      - ./monitoring/promtail/promtail-config.yml:/etc/promtail/config.yml:ro
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /var/log:/var/log:ro
+    command: -config.file=/etc/promtail/config.yml
+    depends_on:
+      - loki
+    networks:
+      - yoldosh-net
+    deploy:
+      resources:
+        limits:
+          cpus: '0.2'
+          memory: 128M
+        reservations:
+          cpus: '0.1'
+          memory: 64M
+
+volumes:
+  postgres-data:
+  redis-cache-data:
+  redis-queue-data:
+  minio-data:
+  prometheus-data:
+  grafana-data:
+  loki-data:
+  alertmanager-data:
+  alertmanager-bot-data:
+  public-data:
+  certbot_certs:
+  certbot_webroot:
+  postgres-primary-data:
+  postgres-replica-data:
+
+networks:
+  yoldosh-net:
+    driver: bridge

@@ -1,0 +1,81 @@
+groups:
+  - name: warning_alerts
+    interval: 30s
+    rules:
+      - alert: HighLatencyP95
+        expr: |
+          histogram_quantile(0.95,
+            sum by (le) (rate(http_request_duration_seconds_bucket[5m]))
+          ) > 1.5
+        for: 5m
+        labels:
+          severity: warning
+          component: application
+          team: backend
+        annotations:
+          summary: "High API latency (p95)"
+          description: "p95 latency > 1.5s for 5 minutes."
+          runbook_url: "https://runbooks.yoldosh.local/high-latency"
+
+      - alert: EventLoopLagHigh
+        expr: yoldosh_nodejs_eventloop_lag_seconds > 0.1
+        for: 5m
+        labels:
+          severity: warning
+          component: application
+          team: backend
+        annotations:
+          summary: "High Node.js event loop lag"
+          description: "Event loop lag > 100ms for 5 minutes."
+          runbook_url: "https://runbooks.yoldosh.local/eventloop-lag"
+
+      - alert: HighAppMemory
+        expr: yoldosh_process_resident_memory_bytes > 800 * 1024 * 1024
+        for: 5m
+        labels:
+          severity: warning
+          component: application
+          team: backend
+        annotations:
+          summary: "High application memory usage"
+          description: "RSS > 800MB for 5 minutes."
+          runbook_url: "https://runbooks.yoldosh.local/high-memory"
+
+      - alert: DbPoolUtilizationHigh
+        expr: |
+          (db_pool_connections{state="active"}
+          /
+          db_pool_connections{state="total"}) > 0.9
+        for: 5m
+        labels:
+          severity: warning
+          component: database
+          team: backend
+        annotations:
+          summary: "DB connection pool is near saturation"
+          description: "Active DB connections > 90% for 5 minutes."
+          runbook_url: "https://runbooks.yoldosh.local/db-pool"
+
+      - alert: PostgresDeadlocks
+        expr: rate(pg_stat_database_deadlocks[5m]) > 0
+        for: 5m
+        labels:
+          severity: warning
+          component: database
+          team: backend
+        annotations:
+          summary: "PostgreSQL deadlocks detected"
+          description: "Deadlocks detected in last 5 minutes."
+          runbook_url: "https://runbooks.yoldosh.local/postgres-deadlocks"
+
+      - alert: RedisMemoryHigh
+        expr: (redis_memory_used_bytes / redis_memory_max_bytes) > 0.85
+        for: 5m
+        labels:
+          severity: warning
+          component: cache
+          team: backend
+        annotations:
+          summary: "Redis memory usage high"
+          description: "Redis memory usage > 85% for 5 minutes."
+          runbook_url: "https://runbooks.yoldosh.local/redis-memory"
